@@ -2,14 +2,20 @@
 # Wta.Tui.psm1
 Import-Module (Join-Path $PSScriptRoot 'Wta.Common.psm1') -DisableNameChecking
 
+function Write-WtaPanelHeader {
+    param([Parameter(Mandatory)][string]$Title,[string]$Subtitle = '')
+    Write-Host ''
+    Write-Host '  +----------------------------------------------------------------+' -ForegroundColor DarkMagenta
+    Write-Host ("  | {0}" -f $Title.PadRight(62)) -ForegroundColor Cyan
+    if ($Subtitle) { Write-Host ("  | {0}" -f $Subtitle.PadRight(62)) -ForegroundColor DarkGray }
+    Write-Host '  +----------------------------------------------------------------+' -ForegroundColor DarkMagenta
+}
+
 function Write-WtaBanner {
     param([Parameter(Mandatory)][pscustomobject]$Context)
 
     Clear-Host
-    Write-Host ''
-    Write-Host '  WIN TUNE ADVISOR' -ForegroundColor Cyan
-    Write-Host ("  v{0} | {1} | local-first diagnostic CLI" -f $Context.ProductVersion, $Context.Channel) -ForegroundColor DarkGray
-    Write-Host '  ------------------------------------------------------------------' -ForegroundColor DarkGray
+    Write-WtaPanelHeader -Title 'WIN TUNE ADVISOR' -Subtitle ("v{0} | {1} | local-first diagnostic CLI" -f $Context.ProductVersion, $Context.Channel)
 }
 
 function Write-WtaPhaseProgress {
@@ -75,10 +81,7 @@ function Get-WtaActionPicker {
 
     while ($running) {
         Clear-Host
-        Write-Host ''
-        Write-Host '  CHOOSE ACTIONS' -ForegroundColor Cyan
-        Write-Host '  ------------------------------------------------------------------' -ForegroundColor DarkGray
-        Write-Host '  Up/Down: move   Space: select   Enter: review   Esc: cancel' -ForegroundColor DarkGray
+        Write-WtaPanelHeader -Title 'CHOOSE ACTIONS' -Subtitle 'Up/Down: move | Space: select | Enter: review | Esc: cancel'
         Write-Host ''
 
         for ($i = 0; $i -lt $Items.Count; $i++) {
@@ -160,9 +163,7 @@ function Confirm-WtaSelectedActions {
     }
 
     Clear-Host
-    Write-Host ''
-    Write-Host '  REVIEW SELECTED ACTIONS' -ForegroundColor Cyan
-    Write-Host '  ------------------------------------------------------------------' -ForegroundColor DarkGray
+    Write-WtaPanelHeader -Title 'REVIEW SELECTED ACTIONS' -Subtitle 'Changes run only after the exact START confirmation.'
     foreach ($action in $Actions) {
         Write-Host ("  [x] {0}" -f $action.Name) -ForegroundColor Gray
         Write-Host ("      Risk: {0}" -f $action.Risk) -ForegroundColor DarkGray
@@ -180,10 +181,7 @@ function Show-WtaAssessment {
     param([Parameter(Mandatory)][pscustomobject]$Context)
 
     Clear-Host
-    Write-Host ''
-    Write-Host '  ASSESSMENT SUMMARY' -ForegroundColor Cyan
-    Write-Host '  ------------------------------------------------------------------' -ForegroundColor DarkGray
-    Write-Host ("  Safety: {0} | Admin: {1}" -f $Context.WorkStatus, $Context.IsAdministrator) -ForegroundColor DarkGray
+    Write-WtaPanelHeader -Title 'ASSESSMENT SUMMARY' -Subtitle ("Safety: {0} | Admin: {1}" -f $Context.WorkStatus, $Context.IsAdministrator)
     Write-Host ''
 
     if ($Context.Findings.Count -eq 0) {

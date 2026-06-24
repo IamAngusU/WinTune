@@ -214,14 +214,17 @@ final class Api
 
         $total = (int)$this->db->query('SELECT COUNT(*) FROM scan_sessions')->fetchColumn();
         $completed = (int)$this->db->query('SELECT COUNT(*) FROM scan_sessions WHERE finding_count >= 0')->fetchColumn();
+        $installations = (int)$this->db->query('SELECT COUNT(*) FROM installations WHERE revoked_at IS NULL')->fetchColumn();
+        $recent = (int)$this->db->query('SELECT COUNT(*) FROM scan_sessions WHERE created_at >= UTC_TIMESTAMP() - INTERVAL 24 HOUR')->fetchColumn();
         $rules = $this->db->query('SELECT rule_id, COUNT(*) AS hits FROM finding_events GROUP BY rule_id ORDER BY hits DESC LIMIT 20')->fetchAll();
         $actions = $this->db->query('SELECT action_id, status, COUNT(*) AS hits FROM action_events GROUP BY action_id, status ORDER BY action_id, hits DESC')->fetchAll();
         $collectors = $this->db->query('SELECT operation_id, status, COUNT(*) AS hits FROM operation_events GROUP BY operation_id, status ORDER BY operation_id, hits DESC')->fetchAll();
 
         header('Content-Type: text/html; charset=utf-8');
-        echo '<!doctype html><html><head><meta charset="utf-8"><title>WinTune Beta Dashboard</title>';
-        echo '<style>body{background:#f5f6f8;color:#20242a;font:15px Segoe UI,Arial;margin:0}main{max-width:1100px;margin:36px auto;padding:0 24px}section{background:#fff;border:1px solid #e2e5e9;border-radius:12px;padding:18px;margin:16px 0}table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:9px;border-bottom:1px solid #eee}h1{margin:0}</style></head><body><main>';
-        echo '<h1>WinTune Beta Funnel</h1><p>Scans received: ' . $total . ' · Parsed sessions: ' . $completed . '</p>';
+        echo '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>WinTune Beta Dashboard</title>';
+        echo '<style>:root{font-family:Inter,Segoe UI,Arial,sans-serif;color:#151625;background:#f5f5fa}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 82% 0,#e8e4ff,transparent 28rem),#f5f5fa}main{max-width:1160px;margin:0 auto;padding:52px 24px 80px}.eyebrow{color:#624cf0;font:800 11px ui-monospace,monospace;text-transform:uppercase;letter-spacing:.1em}h1{font-size:42px;letter-spacing:-.06em;margin:8px 0}header p{color:#6d7080}.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:30px 0}.kpi,section{background:#fff;border:1px solid #dfdeeb;border-radius:16px;box-shadow:0 12px 28px #18133308}.kpi{padding:18px}.kpi small{display:block;color:#74778a;text-transform:uppercase;font-size:10px;letter-spacing:.06em}.kpi b{display:block;margin-top:8px;font-size:27px;letter-spacing:-.05em}section{padding:22px;margin:16px 0}h2{font-size:17px;margin:0 0 14px}table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:11px;border-bottom:1px solid #efedf4}th{font-size:10px;color:#74778a;text-transform:uppercase;letter-spacing:.06em}@media(max-width:700px){.kpis{grid-template-columns:1fr 1fr}}</style></head><body><main>';
+        echo '<header><div class="eyebrow">Private beta analytics</div><h1>WinTune dashboard</h1><p>Aggregated, opt-in beta diagnostics. No raw personal content is stored in this view.</p></header>';
+        echo '<div class="kpis"><div class="kpi"><small>Scans received</small><b>' . $total . '</b></div><div class="kpi"><small>Active installations</small><b>' . $installations . '</b></div><div class="kpi"><small>Last 24 hours</small><b>' . $recent . '</b></div><div class="kpi"><small>Parsed sessions</small><b>' . $completed . '</b></div></div>';
         echo '<section><h2>Most common findings</h2><table><tr><th>Rule</th><th>Hits</th></tr>';
         foreach ($rules as $row) echo '<tr><td>' . htmlspecialchars($row['rule_id']) . '</td><td>' . (int)$row['hits'] . '</td></tr>';
         echo '</table></section><section><h2>Action outcomes</h2><table><tr><th>Action</th><th>Status</th><th>Hits</th></tr>';
