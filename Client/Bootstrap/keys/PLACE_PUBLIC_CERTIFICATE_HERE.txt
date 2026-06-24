@@ -1,0 +1,2 @@
+After server setup, copy update-signing-public.cer into this folder and enable/configure UpdateManifestUrl in BootstrapConfig.json.
+The private key must remain only on the release server.

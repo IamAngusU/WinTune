@@ -1,0 +1,31 @@
+server {
+    listen 443 ssl http2;
+    server_name updates.example.com;
+
+    root /var/www/wintune/public;
+    index index.php;
+    client_max_body_size 128k;
+
+    # TLS cert configuration is intentionally omitted: use Certbot or your existing certificate management.
+    # ssl_certificate /etc/letsencrypt/live/updates.example.com/fullchain.pem;
+    # ssl_certificate_key /etc/letsencrypt/live/updates.example.com/privkey.pem;
+
+    location /releases/ {
+        alias /var/www/wintune/storage/releases/packages/;
+        autoindex off;
+        types { application/zip zip; }
+        add_header X-Content-Type-Options nosniff always;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/run/php/php8.4-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+    }
+
+    location ~ /\.(?!well-known) { deny all; }
+}

@@ -1,0 +1,167 @@
+{
+  "product": "WinTune Advisor CLI Beta",
+  "version": "0.2.0",
+  "generatedUtc": "2026-06-24T12:43:02Z",
+  "files": [
+    {
+      "path": "Client/App/Modules/Wta.Actions.psm1",
+      "sha256": "014acf04548899f0cba3536f65a6067700346f48ffd928924e071e910e9eb0c8",
+      "bytes": 18991
+    },
+    {
+      "path": "Client/App/Modules/Wta.Collectors.psm1",
+      "sha256": "4554ca0f98e93b58ba6a06203177b03c9f1cf9fc76ff73a3fb0b3adb7eabc03a",
+      "bytes": 20809
+    },
+    {
+      "path": "Client/App/Modules/Wta.Common.psm1",
+      "sha256": "7a8f151b9e0ec3b4b751a626e7ed59b7ccc82f212e00e208afbb54124fa7c5fc",
+      "bytes": 16303
+    },
+    {
+      "path": "Client/App/Modules/Wta.Rules.psm1",
+      "sha256": "44a258a40394dd3bd21a6f80ab2c593e1e6c4c57b7194e67b4bdd2f204a60167",
+      "bytes": 11223
+    },
+    {
+      "path": "Client/App/Modules/Wta.Telemetry.psm1",
+      "sha256": "6d6dbe446fb3f2dd598c3c3ad66047e4984dacd4313aae43f23cf27b035f4f54",
+      "bytes": 11228
+    },
+    {
+      "path": "Client/App/Modules/Wta.Tui.psm1",
+      "sha256": "741fa414e664a324d0530947041cbe1e7fcc000374f69a92bc33c6900cb730c6",
+      "bytes": 8170
+    },
+    {
+      "path": "Client/App/WinTuneAdvisor.ps1",
+      "sha256": "7560b84fa9d457dbd6e0a183cf431fd0779d83b3a5240b084f352206460f9d79",
+      "bytes": 3025
+    },
+    {
+      "path": "Client/App/appsettings.json",
+      "sha256": "56c7a7d54e155b43bee64fbcf91c0210a518b18201258b718691415ca6024321",
+      "bytes": 178
+    },
+    {
+      "path": "Client/App/release.json",
+      "sha256": "64fc942c7fbd93eb296d0e07a0137d03c48d9eab09a5b799db93c241e7976d3c",
+      "bytes": 1129
+    },
+    {
+      "path": "Client/Bootstrap/Wta.UpdateBootstrap.psm1",
+      "sha256": "f8f1fff18b2b9282f9fc7b3cc8464a4af3445045490dd6ca147b5d605c7c52e2",
+      "bytes": 7852
+    },
+    {
+      "path": "Client/Bootstrap/keys/PLACE_PUBLIC_CERTIFICATE_HERE.txt",
+      "sha256": "02b2c947858651f3d465d3b84c976601585ab241d5a6d213324aec51d56ed0ae",
+      "bytes": 188
+    },
+    {
+      "path": "Client/BootstrapConfig.json",
+      "sha256": "04b947ebc5d293299efaa18d3fbd943e5946615bb93c0a5735090f7e43e2d5ca",
+      "bytes": 197
+    },
+    {
+      "path": "Client/README.md",
+      "sha256": "3d3d202699c047b4d70f3c4b45bf4f46f708569f3b1b962baabec59baeb574cc",
+      "bytes": 762
+    },
+    {
+      "path": "Client/WinTuneLauncher.ps1",
+      "sha256": "8f2559bb4a32b19310ce8733c660d8978904fd062754b2927aaa0591a5b03ba6",
+      "bytes": 3095
+    },
+    {
+      "path": "README.md",
+      "sha256": "3a49a263de9f9d22d3df4988ab244f497208df21fc14c884ab9b207f7f0e973f",
+      "bytes": 6544
+    },
+    {
+      "path": "Server/.env.example",
+      "sha256": "b8d95d3e951fc005ed221a6cd03ab8d86acc0c74d546399b60e9e1094739ca7f",
+      "bytes": 512
+    },
+    {
+      "path": "Server/README.md",
+      "sha256": "c133ac982bd1ef27a63093dfc7063a1f74e7abd39c4cc01a1c563faadf4707b7",
+      "bytes": 2101
+    },
+    {
+      "path": "Server/database/schema.sql",
+      "sha256": "34cd842a40b4749f0b8390e6e1fdeaad356274edbc0d1cf3df9174868231898a",
+      "bytes": 3512
+    },
+    {
+      "path": "Server/nginx/wintune.conf.example",
+      "sha256": "21f9f2338364a253b8767bb40668563ac41eb9c8d48ed45b200b632c15289a1d",
+      "bytes": 969
+    },
+    {
+      "path": "Server/public/index.php",
+      "sha256": "4f21fda07b6f2471fb1ae3eb778f59152beb0f967a82ee19a6693052570985f2",
+      "bytes": 522
+    },
+    {
+      "path": "Server/scripts/build_release.php",
+      "sha256": "3a567eea9ef9bbe1f20aa58e722e2602b3bc64bc4eda5343bba28390bf6bad32",
+      "bytes": 4433
+    },
+    {
+      "path": "Server/scripts/generate_update_key.sh",
+      "sha256": "8332a1f5f13ed0b25bc9d7fd2a99bb3d5b1c2632d5780a7e75c5f49aeb1c1929",
+      "bytes": 583
+    },
+    {
+      "path": "Server/src/Api.php",
+      "sha256": "03f75a7dcc43be6e5f318f36994ab753d6825f2f3afd527cfa88fbff7d416c91",
+      "bytes": 12966
+    },
+    {
+      "path": "Server/src/Config.php",
+      "sha256": "c59575708c9f79b8d0e987a8361ba3fa9d46f9f6aa2f3b95e0e84187b17f1187",
+      "bytes": 1057
+    },
+    {
+      "path": "Server/src/Database.php",
+      "sha256": "5b9cd85272295cb69616990261233b6e50271d889cb7ae9d3220fbf41887d26f",
+      "bytes": 514
+    },
+    {
+      "path": "Server/src/Http.php",
+      "sha256": "e0e0244c5952cb171d867edd9aca7fa3920c88166b3ae86c23ec3237b86d452d",
+      "bytes": 1629
+    },
+    {
+      "path": "Server/src/TelemetryValidator.php",
+      "sha256": "64954c2c70e66a99b46822eabf89701de9cfa3ff80f1c45158b654ad4a26a4f0",
+      "bytes": 4751
+    },
+    {
+      "path": "Server/storage/logs/.gitkeep",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "Server/storage/releases/manifests/.gitkeep",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "Server/storage/releases/packages/.gitkeep",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "Tests/TestMatrix.md",
+      "sha256": "8e20b1646eb8715e1bf634900d4451b58df546370b1292052021b4f3478c6d0f",
+      "bytes": 3213
+    },
+    {
+      "path": "Tests/fixtures/README.md",
+      "sha256": "a5c9e5f3213b2fffdfffa142f81eabd40ee6fc7a9b957e7c4b12c6316367d039",
+      "bytes": 108
+    }
+  ]
+}

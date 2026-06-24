@@ -1,0 +1,10 @@
+# Runtime configuration and credentials
+Server/.env
+Server/storage/releases/manifests/*.json
+Server/storage/releases/packages/**/*.zip
+Server/storage/releases/.build.lock
+Client/Bootstrap/keys/*.cer
+
+# OS/editor files
+.DS_Store
+Thumbs.db

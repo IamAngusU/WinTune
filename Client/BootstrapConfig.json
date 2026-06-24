@@ -1,0 +1,7 @@
+{
+  "ProductName": "WinTune Advisor",
+  "InitialVersion": "0.2.0",
+  "EnableUpdateCheck": false,
+  "UpdateManifestUrl": "",
+  "PublicCertificateFile": "Bootstrap\\keys\\update-signing-public.cer"
+}
