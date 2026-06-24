@@ -1,0 +1,103 @@
+name: Publish signed WinTune release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Semantic version to publish (for example 0.2.1)
+        required: true
+        type: string
+      channel:
+        description: Update channel
+        required: true
+        default: beta
+        type: choice
+        options: [beta, stable]
+      notes:
+        description: Release notes, separated with | characters
+        required: false
+        default: Signed WinTune release
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wintune-release-${{ inputs.channel }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    # Configure this environment in GitHub with required reviewers. The job
+    # pauses here until an authorised person approves the exact release run.
+    environment: production
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          extensions: openssl, zip
+      - name: Validate release input
+        run: |
+          [[ "${{ inputs.version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "${{ inputs.channel }}" == "beta" || "${{ inputs.channel }}" == "stable" ]]
+      - name: Restore the signing key
+        env:
+          WINTUNE_UPDATE_SIGNING_KEY: ${{ secrets.WINTUNE_UPDATE_SIGNING_KEY }}
+        run: |
+          umask 077
+          printf '%s' "$WINTUNE_UPDATE_SIGNING_KEY" > "$RUNNER_TEMP/update-signing-private.pem"
+      - name: Configure deploy host verification
+        env:
+          WINTUNE_DEPLOY_SSH_KEY: ${{ secrets.WINTUNE_DEPLOY_SSH_KEY }}
+          WINTUNE_DEPLOY_KNOWN_HOSTS: ${{ secrets.WINTUNE_DEPLOY_KNOWN_HOSTS }}
+        run: |
+          umask 077
+          mkdir -p ~/.ssh
+          printf '%s' "$WINTUNE_DEPLOY_SSH_KEY" > ~/.ssh/wintune-deploy
+          printf '%s\n' "$WINTUNE_DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/wintune-deploy ~/.ssh/known_hosts
+      - name: Build signed package
+        run: |
+          php Server/scripts/build_release.php \
+            --app-dir="$GITHUB_WORKSPACE/Client/App" \
+            --client-dir="$GITHUB_WORKSPACE/Client" \
+            --release-root="$RUNNER_TEMP/releases" \
+            --base-url="https://angusu.de/wintune" \
+            --channel="${{ inputs.channel }}" \
+            --version="${{ inputs.version }}" \
+            --notes="${{ inputs.notes }}" \
+            --private-key="$RUNNER_TEMP/update-signing-private.pem"
+      - name: Deploy package and manifests
+        env:
+          WINTUNE_DEPLOY_HOST: ${{ secrets.WINTUNE_DEPLOY_HOST }}
+          WINTUNE_DEPLOY_USER: ${{ secrets.WINTUNE_DEPLOY_USER }}
+          WINTUNE_RELEASE_ROOT: ${{ secrets.WINTUNE_RELEASE_ROOT }}
+        run: |
+          set -euo pipefail
+          [[ "$WINTUNE_DEPLOY_HOST" =~ ^[A-Za-z0-9.-]+$ ]]
+          [[ "$WINTUNE_DEPLOY_USER" =~ ^[A-Za-z0-9_-]+$ ]]
+          [[ "$WINTUNE_RELEASE_ROOT" =~ ^/[-A-Za-z0-9_./]+$ ]]
+          target="$WINTUNE_DEPLOY_USER@$WINTUNE_DEPLOY_HOST"
+          ssh -i ~/.ssh/wintune-deploy -o StrictHostKeyChecking=yes "$target" \
+            mkdir -p "$WINTUNE_RELEASE_ROOT/packages/${{ inputs.channel }}" "$WINTUNE_RELEASE_ROOT/manifests"
+          scp -i ~/.ssh/wintune-deploy -o StrictHostKeyChecking=yes \
+            "$RUNNER_TEMP/releases/packages/${{ inputs.channel }}/WinTuneAdvisor-${{ inputs.version }}.zip" \
+            "$target:$WINTUNE_RELEASE_ROOT/packages/${{ inputs.channel }}/WinTuneAdvisor-${{ inputs.version }}.zip"
+          scp -i ~/.ssh/wintune-deploy -o StrictHostKeyChecking=yes \
+            "$RUNNER_TEMP/releases/packages/${{ inputs.channel }}/WinTuneAdvisor-Setup-${{ inputs.version }}.zip" \
+            "$target:$WINTUNE_RELEASE_ROOT/packages/${{ inputs.channel }}/WinTuneAdvisor-Setup-${{ inputs.version }}.zip"
+          scp -i ~/.ssh/wintune-deploy -o StrictHostKeyChecking=yes \
+            "$RUNNER_TEMP/releases/manifests/${{ inputs.channel }}.json" \
+            "$RUNNER_TEMP/releases/manifests/public-release.json" \
+            "$target:$WINTUNE_RELEASE_ROOT/manifests/"
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v${{ inputs.version }}" \
+            "$RUNNER_TEMP/releases/packages/${{ inputs.channel }}/WinTuneAdvisor-${{ inputs.version }}.zip#WinTuneAdvisor-${{ inputs.version }}.zip" \
+            "$RUNNER_TEMP/releases/packages/${{ inputs.channel }}/WinTuneAdvisor-Setup-${{ inputs.version }}.zip#WinTuneAdvisor-Setup-${{ inputs.version }}.zip" \
+            --title "WinTune v${{ inputs.version }}" \
+            --notes "${{ inputs.notes }}"
