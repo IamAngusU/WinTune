@@ -34,7 +34,9 @@ try {
     if ($context.IsAdministrator) {
         Write-Host 'Administrator session detected. Eligible elevated actions can be selected later.' -ForegroundColor Green
     } else {
-        Write-Host 'Standard-user session detected. Diagnostic collectors continue; elevated actions are shown as blocked.' -ForegroundColor Yellow
+        Write-Host 'Standard-user session detected. Diagnostics and current-user actions remain available.' -ForegroundColor Yellow
+        Write-Host 'For the full action set, close WinTune, right-click Start-WinTune.cmd, and choose "Run as administrator".' -ForegroundColor Yellow
+        Write-Host 'Nothing is blocked silently: actions that need elevation are clearly marked.' -ForegroundColor DarkGray
     }
 
     Set-WtaWorkSafetyMode -Context $context
