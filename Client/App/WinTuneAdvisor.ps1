@@ -15,7 +15,7 @@ if ($env:OS -ne 'Windows_NT') {
 
 $moduleRoot = Join-Path $PSScriptRoot 'Modules'
 foreach ($module in @('Wta.Common.psm1','Wta.Tui.psm1','Wta.Collectors.psm1','Wta.Rules.psm1','Wta.Actions.psm1','Wta.Telemetry.psm1')) {
-    Import-Module (Join-Path $moduleRoot $module) -Force
+    Import-Module (Join-Path $moduleRoot $module) -Force -DisableNameChecking
 }
 
 $settings = Get-WtaJsonFile -Path (Join-Path $PSScriptRoot 'appsettings.json')

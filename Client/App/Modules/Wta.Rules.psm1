@@ -89,7 +89,7 @@ function Invoke-WtaRuleEngine {
         if ($null -ne $disk.TemperatureC -and [double]$disk.TemperatureC -ge 70) {
             Add-WtaFinding -Context $Context -Severity Warning -Category 'Storage' -RuleId 'DISK_HIGH_TEMPERATURE' `
                 -Title ("Disk {0} reports high temperature" -f $disk.Number) `
-                -Evidence ("{0}°C on {1}." -f $disk.TemperatureC, $disk.FriendlyName) `
+                -Evidence ("{0} degrees C on {1}." -f $disk.TemperatureC, $disk.FriendlyName) `
                 -Recommendation 'Inspect airflow, heatsink contact, firmware, and sustained workload before continuing heavy writes.' `
                 -ActionIds @() -Risk Manual
         }
@@ -168,7 +168,8 @@ function Invoke-WtaRuleEngine {
         -Recommendation 'Reduce animations only when the user prefers less UI motion; this is not a disk-health optimization.' `
         -ActionIds @('ReduceAnimations') -Risk Low
 
-    if ($system -and -not $system.HasBattery -and $system.ActivePowerPlan -notmatch 'Höchstleistung|High performance') {
+    $highPerformancePlanPattern = 'High performance|H' + [char]0x00F6 + 'chstleistung'
+    if ($system -and -not $system.HasBattery -and $system.ActivePowerPlan -notmatch $highPerformancePlanPattern) {
         Add-WtaFinding -Context $Context -Severity Optional -Category 'Power' -RuleId 'POWER_PLAN_OPTION' `
             -Title 'High performance power plan is not active' -Evidence $system.ActivePowerPlan `
             -Recommendation 'On a desktop or plugged-in workstation, High performance may improve responsiveness at the cost of energy use, heat, and fan noise.' `

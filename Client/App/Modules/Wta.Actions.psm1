@@ -312,7 +312,7 @@ function Invoke-WtaStartupReview {
     Write-Host ''
     Write-Host 'SUPPORTED REGISTRY RUN STARTUP ENTRIES' -ForegroundColor Cyan
     for ($i = 0; $i -lt $items.Count; $i++) {
-        Write-Host ("[{0}] {1} — {2}" -f ($i + 1), $items[$i].Name, $items[$i].Location)
+        Write-Host ("[{0}] {1} - {2}" -f ($i + 1), $items[$i].Name, $items[$i].Location)
     }
 
     $raw = Read-Host 'Enter one number to disable, or press Enter to cancel'

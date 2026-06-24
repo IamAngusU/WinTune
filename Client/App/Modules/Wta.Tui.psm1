@@ -8,7 +8,7 @@ function Write-WtaBanner {
     Clear-Host
     Write-Host ''
     Write-Host '  WIN TUNE ADVISOR' -ForegroundColor Cyan
-    Write-Host ("  v{0} · {1} · local-first diagnostic CLI" -f $Context.ProductVersion, $Context.Channel) -ForegroundColor DarkGray
+    Write-Host ("  v{0} | {1} | local-first diagnostic CLI" -f $Context.ProductVersion, $Context.Channel) -ForegroundColor DarkGray
     Write-Host '  ------------------------------------------------------------------' -ForegroundColor DarkGray
 }
 
@@ -48,7 +48,7 @@ function Write-WtaCollectorStatus {
         default          { 'Gray' }
     }
 
-    $detail = if ($Operation.ErrorCode) { " — $($Operation.ErrorCode)" } else { '' }
+    $detail = if ($Operation.ErrorCode) { " - $($Operation.ErrorCode)" } else { '' }
     Write-Host ("  [{0}] {1}{2}" -f $symbol, $Operation.Id, $detail) -ForegroundColor $color
 }
 
@@ -126,7 +126,7 @@ function Get-WtaActionPickerFallback {
     Write-Host 'CHOOSE ACTIONS (fallback input)' -ForegroundColor Cyan
     for ($i = 0; $i -lt $Items.Count; $i++) {
         $item = $Items[$i]
-        $state = if ($item.Eligible) { '' } else { " — blocked: $($item.BlockReason)" }
+        $state = if ($item.Eligible) { '' } else { " - blocked: $($item.BlockReason)" }
         Write-Host ("[{0}] {1}{2}" -f ($i + 1), $item.Name, $state)
     }
 

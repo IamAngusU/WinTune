@@ -16,7 +16,7 @@ if ($env:OS -ne 'Windows_NT') {
 
 $launcherRoot = $PSScriptRoot
 $modulePath = Join-Path $launcherRoot 'Bootstrap\Wta.UpdateBootstrap.psm1'
-Import-Module $modulePath -Force
+Import-Module $modulePath -Force -DisableNameChecking
 
 $dataRoot = Get-WtaBootstrapRoot
 $configObj = Get-WtaBootstrapConfig -LauncherRoot $launcherRoot
@@ -32,7 +32,7 @@ catch {
 }
 
 $current = Get-WtaCurrentVersionRecord -DataRoot $dataRoot
-Write-Host ("WinTune Advisor launcher · local version {0}" -f $current.version) -ForegroundColor Cyan
+Write-Host ("WinTune Advisor launcher - local version {0}" -f $current.version) -ForegroundColor Cyan
 
 if (-not $SkipUpdateCheck -and [bool]$config.EnableUpdateCheck -and -not [string]::IsNullOrWhiteSpace([string]$config.UpdateManifestUrl)) {
     try {

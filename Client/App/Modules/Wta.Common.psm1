@@ -438,7 +438,7 @@ small,span{color:#68717b} table{width:100%;border-collapse:collapse}
 th,td{text-align:left;padding:10px;border-bottom:1px solid #edf0f2;vertical-align:top}
 th{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:#68717b}
 </style></head><body><main>
-<h1>WinTune Advisor</h1><small>Local report · Session $((ConvertTo-WtaHtml $Context.SessionId)) · Safety $((ConvertTo-WtaHtml $Context.WorkStatus))</small>
+<h1>WinTune Advisor</h1><small>Local report | Session $((ConvertTo-WtaHtml $Context.SessionId)) | Safety $((ConvertTo-WtaHtml $Context.WorkStatus))</small>
 <section class="card"><h2>Findings</h2><table><thead><tr><th>Severity</th><th>Category</th><th>Finding</th><th>Recommendation</th></tr></thead><tbody>$($findingRows -join "`n")</tbody></table></section>
 <section class="card"><h2>Collector results</h2><table><thead><tr><th>Collector</th><th>Status</th><th>Source</th><th>Reason</th></tr></thead><tbody>$($operationRows -join "`n")</tbody></table></section>
 <section class="card"><h2>Executed actions</h2><table><thead><tr><th>Action</th><th>Status</th><th>Details</th></tr></thead><tbody>$($actionRows -join "`n")</tbody></table></section>
