@@ -275,9 +275,14 @@ function Get-WtaJsonFile {
         throw "Configuration file not found: $Path"
     }
 
-    $raw = Get-Content -LiteralPath $Path -Raw -Encoding UTF8
-    $value = $raw | ConvertFrom-Json
-    return ConvertTo-WtaHashtable -InputObject $value
+    try {
+        $raw = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 -ErrorAction Stop
+        $value = $raw | ConvertFrom-Json -ErrorAction Stop
+        return ConvertTo-WtaHashtable -InputObject $value
+    }
+    catch {
+        throw "Configuration file is invalid: $Path ($($_.Exception.Message))"
+    }
 }
 
 function ConvertTo-WtaHashtable {
@@ -301,9 +306,10 @@ function ConvertTo-WtaHashtable {
         return $items
     }
 
-    if ($InputObject.PSObject -and $InputObject.PSObject.Properties.Count -gt 0 -and -not ($InputObject -is [string])) {
+    $properties = @($InputObject.PSObject.Properties)
+    if ($properties.Count -gt 0 -and -not ($InputObject -is [string])) {
         $hash = @{}
-        foreach ($property in $InputObject.PSObject.Properties) {
+        foreach ($property in $properties) {
             $hash[$property.Name] = ConvertTo-WtaHashtable -InputObject $property.Value
         }
         return $hash

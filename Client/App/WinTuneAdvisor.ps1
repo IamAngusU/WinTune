@@ -18,17 +18,18 @@ foreach ($module in @('Wta.Common.psm1','Wta.Tui.psm1','Wta.Collectors.psm1','Wt
     Import-Module (Join-Path $moduleRoot $module) -Force -DisableNameChecking
 }
 
-$settings = Get-WtaJsonFile -Path (Join-Path $PSScriptRoot 'appsettings.json')
-$desktop = [Environment]::GetFolderPath('Desktop')
-if ([string]::IsNullOrWhiteSpace($desktop) -or -not (Test-Path -LiteralPath $desktop)) {
-    $desktop = Join-Path $env:LOCALAPPDATA 'WinTuneAdvisor\reports'
-}
-$outputRoot = Join-Path $desktop ("WinTuneAdvisor_{0}" -f (Get-Date -Format 'yyyyMMdd_HHmmss'))
-New-Item -ItemType Directory -Path $outputRoot -Force | Out-Null
-
-$context = New-WtaContext -OutputRoot $outputRoot -Settings $settings -BootstrapRoot $BootstrapRoot
-
+$context = $null
+$outputRoot = $null
 try {
+    $settings = Get-WtaJsonFile -Path (Join-Path $PSScriptRoot 'appsettings.json')
+    $desktop = [Environment]::GetFolderPath('Desktop')
+    if ([string]::IsNullOrWhiteSpace($desktop) -or -not (Test-Path -LiteralPath $desktop)) {
+        $desktop = Join-Path $env:LOCALAPPDATA 'WinTuneAdvisor\reports'
+    }
+    $outputRoot = Join-Path $desktop ("WinTuneAdvisor_{0}" -f (Get-Date -Format 'yyyyMMdd_HHmmss'))
+    New-Item -ItemType Directory -Path $outputRoot -Force -ErrorAction Stop | Out-Null
+    $context = New-WtaContext -OutputRoot $outputRoot -Settings $settings -BootstrapRoot $BootstrapRoot
+
     Write-WtaBanner -Context $context
     Write-Host 'No telemetry is sent unless you explicitly opt in after the scan.' -ForegroundColor DarkGray
     if ($context.IsAdministrator) {
@@ -64,14 +65,14 @@ try {
     }
 }
 catch {
-    try {
-        $_ | Out-String | Set-Content -LiteralPath (Join-Path $outputRoot 'FatalError.txt') -Encoding UTF8
-    } catch {}
+    if ($outputRoot) {
+        try { $_ | Out-String | Set-Content -LiteralPath (Join-Path $outputRoot 'FatalError.txt') -Encoding UTF8 } catch {}
+    }
     Write-Host ("Unexpected non-recoverable host error: {0}" -f $_.Exception.Message) -ForegroundColor Red
 }
 finally {
-    try { Export-WtaReports -Context $context } catch {}
+    if ($null -ne $context) { try { Export-WtaReports -Context $context } catch {} }
     Write-Host ''
-    Write-Host ("Session folder: {0}" -f $outputRoot) -ForegroundColor DarkGray
+    if ($outputRoot) { Write-Host ("Session folder: {0}" -f $outputRoot) -ForegroundColor DarkGray }
     if (-not $NoPause) { [void](Read-Host 'Press Enter to close') }
 }
