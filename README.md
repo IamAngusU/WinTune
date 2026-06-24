@@ -22,7 +22,9 @@ The private signing key is not part of this repository, any release ZIP, or the 
 
 ## Quick start
 
-Download and extract the starter ZIP, then run:
+Download and extract the starter ZIP, then double-click `Start-WinTune.cmd`.
+
+Power users can start the launcher directly:
 
 ```powershell
 .\WinTuneLauncher.ps1
