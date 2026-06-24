@@ -12,7 +12,7 @@ php build_release.php \
   --private-key=/secure/keys/update-signing-private.pem
 */
 
-$options = getopt('', ['app-dir:', 'release-root:', 'base-url:', 'channel:', 'version:', 'private-key:', 'notes::']);
+$options = getopt('', ['app-dir:', 'client-dir::', 'release-root:', 'base-url:', 'channel:', 'version:', 'private-key:', 'notes::']);
 foreach (['app-dir', 'release-root', 'base-url', 'channel', 'version', 'private-key'] as $key) {
     if (empty($options[$key])) {
         fwrite(STDERR, "Missing --{$key}\n");
@@ -26,14 +26,16 @@ $baseUrl = rtrim($options['base-url'], '/');
 $channel = $options['channel'];
 $version = $options['version'];
 $keyPath = $options['private-key'];
+$clientDir = isset($options['client-dir']) ? rtrim(realpath((string) $options['client-dir']) ?: '', DIRECTORY_SEPARATOR) : '';
 
 if ($appDir === '' || !is_dir($appDir)) throw new RuntimeException('Invalid --app-dir');
 if (!preg_match('/^(beta|stable)$/', $channel)) throw new RuntimeException('Invalid channel');
 if (!preg_match('/^\d+\.\d+\.\d+$/', $version)) throw new RuntimeException('Version must be numeric x.y.z');
 if (!filter_var($baseUrl, FILTER_VALIDATE_URL) || parse_url($baseUrl, PHP_URL_SCHEME) !== 'https' || parse_url($baseUrl, PHP_URL_USER) !== null) throw new RuntimeException('base-url must be an HTTPS URL without credentials');
 if (!is_file($keyPath)) throw new RuntimeException('Private key not found');
+if ($clientDir !== '' && (!is_dir($clientDir) || !is_file($clientDir . '/Bootstrap/keys/update-signing-public.cer'))) throw new RuntimeException('client-dir must contain the pinned public update certificate');
 
-if (!is_dir($releaseRoot) && !mkdir($releaseRoot, 0750, true) && !is_dir($releaseRoot)) throw new RuntimeException('Cannot create release root');
+if (!is_dir($releaseRoot) && !mkdir($releaseRoot, 0755, true) && !is_dir($releaseRoot)) throw new RuntimeException('Cannot create release root');
 $lock = fopen($releaseRoot . '/.build.lock', 'c');
 if ($lock === false || !flock($lock, LOCK_EX | LOCK_NB)) throw new RuntimeException('Another release build is already running');
 
@@ -69,8 +71,8 @@ file_put_contents($staging . '/release.json', json_encode(['version' => $version
 
 $packageDir = "{$releaseRoot}/packages/{$channel}";
 $manifestDir = "{$releaseRoot}/manifests";
-@mkdir($packageDir, 0750, true);
-@mkdir($manifestDir, 0750, true);
+@mkdir($packageDir, 0755, true);
+@mkdir($manifestDir, 0755, true);
 
 $packageName = "WinTuneAdvisor-{$version}.zip";
 $packagePath = "{$packageDir}/{$packageName}";
@@ -88,6 +90,36 @@ foreach ($iterator as $file) {
 $zip->close();
 
 if (!rename($temporaryPackagePath, $packagePath)) throw new RuntimeException('Cannot publish ZIP');
+
+$starterName = '';
+$starterPath = '';
+if ($clientDir !== '') {
+    $starterStaging = sys_get_temp_dir() . '/wintune-starter-' . bin2hex(random_bytes(6));
+    mkdir($starterStaging, 0700, true);
+    $copy($clientDir, $starterStaging);
+    $starterApp = $starterStaging . '/App';
+    if (is_dir($starterApp)) {
+        $delete = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($starterApp, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
+        foreach ($delete as $item) $item->isDir() ? rmdir($item->getPathname()) : unlink($item->getPathname());
+        rmdir($starterApp);
+    }
+    mkdir($starterApp, 0700, true);
+    $updateZip = new ZipArchive();
+    if ($updateZip->open($packagePath) !== true || !$updateZip->extractTo($starterApp)) throw new RuntimeException('Cannot build starter package');
+    $updateZip->close();
+    $bootstrapPath = $starterStaging . '/BootstrapConfig.json';
+    $bootstrap = json_decode((string) file_get_contents($bootstrapPath), true, flags: JSON_THROW_ON_ERROR);
+    $bootstrap['InitialVersion'] = $version;
+    file_put_contents($bootstrapPath, json_encode($bootstrap, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
+    $starterName = "WinTuneAdvisor-Setup-{$version}.zip";
+    $starterPath = "{$packageDir}/{$starterName}";
+    $starterZip = new ZipArchive();
+    if ($starterZip->open($starterPath . '.tmp', ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) throw new RuntimeException('Cannot create starter ZIP');
+    $starterFiles = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($starterStaging, FilesystemIterator::SKIP_DOTS));
+    foreach ($starterFiles as $file) if ($file->isFile()) $starterZip->addFile($file->getPathname(), str_replace(DIRECTORY_SEPARATOR, '/', substr($file->getPathname(), strlen($starterStaging) + 1)));
+    $starterZip->close();
+    if (!rename($starterPath . '.tmp', $starterPath)) throw new RuntimeException('Cannot publish starter ZIP');
+}
 
 $payload = [
     'schemaVersion' => 1,
@@ -121,8 +153,8 @@ atomicJsonWrite("{$manifestDir}/{$channel}.json", $envelope);
 atomicJsonWrite("{$manifestDir}/public-release.json", [
     'version' => $version,
     'channel' => $channel,
-    'downloadUrl' => "/wintune/releases/{$channel}/{$packageName}",
-    'sha256' => $payload['packageSha256'],
+    'downloadUrl' => "/wintune/releases/{$channel}/" . ($starterName ?: $packageName),
+    'sha256' => $starterPath !== '' ? hash_file('sha256', $starterPath) : $payload['packageSha256'],
     'notes' => $payload['releaseNotes'],
     'publishedAt' => $payload['publishedAt'],
 ]);

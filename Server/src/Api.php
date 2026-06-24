@@ -14,6 +14,10 @@ final class Api
     {
         try {
             $path = rtrim($request['path'], '/') ?: '/';
+            $basePath = rtrim((string) ($this->config['API_BASE_PATH'] ?? ''), '/');
+            if ($basePath !== '' && ($path === $basePath || str_starts_with($path, $basePath . '/'))) {
+                $path = substr($path, strlen($basePath)) ?: '/';
+            }
             if ($path === '/v1/updates/manifest' && $request['method'] === 'GET') {
                 $this->manifest($request);
             }

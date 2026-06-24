@@ -5,8 +5,8 @@
 The public routes are served beneath `https://angusu.de/wintune/`.
 
 1. Copy the contents of `Server/nginx/angusu-wintune.location.conf` into the HTTPS `angusu.de` server block, then run `nginx -t` and reload Nginx.
-2. Create a private `.env` from `Server/.env.example`, with a generated `APP_PEPPER` and a strong password hash. Never commit it.
-3. Create the database and restricted database user, then import `Server/database/schema.sql`.
+2. Run `sudo php Server/scripts/provision_server.php` to create the database, restricted database user, release directories, and a private `.env`. Store the one-time dashboard password it prints; never commit `.env`.
+3. If provisioning happens on another database host, create the database and restricted database user there, import `Server/database/schema.sql`, and create `.env` from `Server/.env.example` with those credentials.
 4. Generate the signing key outside the web root. Put the public `.cer` in `Client/Bootstrap/keys/` before distributing the first starter ZIP; keep the PEM only in the release secret store.
 5. Optionally set `WINTUNE_SOURCE_URL` in the PHP-FPM environment if the source repository moves. The default points to `https://github.com/IamAngusU/WinTune`.
 

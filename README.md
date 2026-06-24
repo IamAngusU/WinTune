@@ -109,6 +109,7 @@ Client/Bootstrap/keys/update-signing-public.cer
 ```bash
 php Server/scripts/build_release.php \
   --app-dir=/path/to/WinTuneAdvisor/Client/App \
+  --client-dir=/path/to/WinTuneAdvisor/Client \
   --release-root=/var/www/wintune/storage/releases \
   --base-url=https://updates.your-domain.tld \
   --channel=beta \
