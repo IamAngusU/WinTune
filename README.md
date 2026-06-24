@@ -30,12 +30,12 @@ On a Windows 10/11 test device, extract the ZIP and open PowerShell in `Client/`
 
 For elevated actions, launch PowerShell **as Administrator** first. The tool deliberately still works without elevation: it completes diagnostics and marks privileged actions as unavailable instead of failing.
 
-For an initial friends phase, keep these defaults:
+For an entirely offline local test, temporarily disable these defaults:
 
 - `Client/BootstrapConfig.json` → `EnableUpdateCheck: false`
 - `Client/App/appsettings.json` → `Telemetry.Enabled: false`
 
-That gives you a safe **local diagnostic beta** before any server data collection.
+The hosted beta ships with signed update checks enabled. Telemetry is still sent only after the user explicitly agrees and enters a valid beta code.
 
 ## UX flow
 
