@@ -71,7 +71,12 @@ function Get-WtaActionPicker {
 
     if ($Items.Count -eq 0) { return @() }
 
-    if (-not (Test-WtaInteractiveTerminal -Context $Context)) {
+    # Windows Console hosts can repeat a held Space key. That made a visual
+    # checkbox selector toggle twice and required a full Clear-Host redraw.
+    # The numbered multi-select below is deterministic on Windows PowerShell
+    # 5.1, PowerShell 7, Windows Terminal, and redirected console hosts.
+    $useInteractivePicker = $false
+    if (-not $useInteractivePicker -or -not (Test-WtaInteractiveTerminal -Context $Context)) {
         return Get-WtaActionPickerFallback -Context $Context -Items $Items
     }
 
@@ -125,15 +130,21 @@ function Get-WtaActionPickerFallback {
         [Parameter(Mandatory)][object[]]$Items
     )
 
-    Write-Host ''
-    Write-Host 'CHOOSE ACTIONS (fallback input)' -ForegroundColor Cyan
+    Write-WtaPanelHeader -Title 'CHOOSE ACTIONS' -Subtitle 'Enter one or more ready action numbers, separated by commas.'
     for ($i = 0; $i -lt $Items.Count; $i++) {
         $item = $Items[$i]
-        $state = if ($item.Eligible) { '' } else { " - blocked: $($item.BlockReason)" }
-        Write-Host ("[{0}] {1}{2}" -f ($i + 1), $item.Name, $state)
+        if ($item.Eligible) {
+            Write-Host ("  [{0}] READY    {1}" -f ($i + 1), $item.Name) -ForegroundColor Green
+        }
+        else {
+            Write-Host ("  [{0}] BLOCKED  {1}" -f ($i + 1), $item.Name) -ForegroundColor DarkGray
+            Write-Host ("               {0}" -f $item.BlockReason) -ForegroundColor DarkGray
+        }
+        Write-Host ("               {0}" -f $item.Description) -ForegroundColor DarkGray
     }
 
-    $raw = Read-Host 'Enter action numbers separated by comma, or press Enter to cancel'
+    Write-Host ''
+    $raw = Read-Host 'Choose ready actions (example: 1,3). Press Enter to cancel'
     if ([string]::IsNullOrWhiteSpace($raw)) { return @() }
 
     $numbers = @()
