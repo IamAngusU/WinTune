@@ -1,6 +1,6 @@
 
 # Wta.Tui.psm1
-Import-Module (Join-Path $PSScriptRoot 'Wta.Common.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'Wta.Common.psm1') -DisableNameChecking
 
 function Write-WtaBanner {
     param([Parameter(Mandatory)][pscustomobject]$Context)

@@ -1,7 +1,7 @@
 
 # Wta.Collectors.psm1
-Import-Module (Join-Path $PSScriptRoot 'Wta.Common.psm1') -Force
-Import-Module (Join-Path $PSScriptRoot 'Wta.Tui.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'Wta.Common.psm1') -DisableNameChecking
+Import-Module (Join-Path $PSScriptRoot 'Wta.Tui.psm1') -DisableNameChecking
 
 function Get-WtaSystemProfile {
     param([Parameter(Mandatory)][pscustomobject]$Context)

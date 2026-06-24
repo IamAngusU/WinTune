@@ -1,6 +1,6 @@
 
 # Wta.Telemetry.psm1
-Import-Module (Join-Path $PSScriptRoot 'Wta.Common.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'Wta.Common.psm1') -DisableNameChecking
 
 function Get-WtaTelemetryRoot {
     $root = Join-Path (Get-WtaLocalDataRoot) 'telemetry-queue'
