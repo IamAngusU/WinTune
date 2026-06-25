@@ -1,15 +1,23 @@
-# Client quick start
+# Start WinTune
 
-Extract the package to a local folder. Do not run the engine from a network share.
+Publisher: Angusu.de / Angus Uelsmann  
+Website: https://angusu.de/
 
-```powershell
-cd .\Client
-.\WinTuneLauncher.ps1 -SampleSeconds 20
-```
+1. Download and extract the starter ZIP to a local folder, such as Downloads.
+2. Double-click `Start-WinTune.cmd`.
+3. Read the onscreen prompts and choose the actions you want to run.
 
-For administrator-only actions, open a PowerShell window **as Administrator** and run the same command.
+The starter opens PowerShell for this one run only. It does not change Windows execution-policy settings. Do not run WinTune from a network share.
 
-The default beta configuration has remote update checks and telemetry disabled. Configure them only after you deploy the server over a real HTTPS domain and add the pinned public update certificate.
+For actions that need administrator rights, right-click `Start-WinTune.cmd` and choose **Run as administrator**. Diagnostics and reports work without administrator rights.
+
+## What happens to beta data
+
+WinTune creates a random installation UUID in `%LOCALAPPDATA%\WinTuneAdvisor\identity.json`. It is used only to correlate voluntary beta reports from the same installation. The server stores an HMAC hash of that UUID, not the UUID itself. A beta access token is protected using Windows DPAPI for the current user.
+
+Analysis data is optional. After the scan, WinTune writes a local preview file in the session folder and can open it in Windows Editor before the user decides. Sending is confirmed in the app and does not require a beta code. See the [privacy section](https://angusu.de/docs/wintune/#telemetry) for the exact fields.
+
+The published beta checks the signed update endpoint. Analysis data stays optional and requires a separate confirmation.
 
 `WinTuneLauncher.ps1` is the stable entrypoint. It prepares a versioned local cache under:
 
@@ -18,3 +26,5 @@ The default beta configuration has remote update checks and telemetry disabled. 
 ```
 
 It can later verify signed package updates and roll forward only after verification. It does not download and execute arbitrary remote scripts.
+
+Windows can still show an unknown-publisher warning for `Start-WinTune.cmd` because command scripts do not carry a verified publisher identity. A verified publisher requires Authenticode signing or a signed installer/MSIX.

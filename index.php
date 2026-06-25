@@ -23,10 +23,14 @@ if (is_file($metadataPath) && is_readable($metadataPath)) {
 
 $version = $release['version'] ?? '0.0.0';
 $versionLabel = isset($release['version']) ? 'v' . $release['version'] : 'Beta folgt in Kürze';
-$downloadUrl = $release['downloadUrl'] ?? '#download';
+$rawDownloadUrl = $release['downloadUrl'] ?? '#download';
+$downloadUrl = str_starts_with($rawDownloadUrl, '/wintune/releases/')
+    ? '/wintune/api/v1/download?target=' . rawurlencode($rawDownloadUrl)
+    : $rawDownloadUrl;
 $downloadLabel = isset($release['version']) ? 'Download v' . $release['version'] : 'Noch kein Release verfügbar';
 $sha256 = isset($release['sha256']) ? strtoupper($release['sha256']) : 'Wird mit dem ersten Release veröffentlicht';
 $sourceUrl = getenv('WINTUNE_SOURCE_URL') ?: 'https://github.com/IamAngusU/WinTune';
+$assetVersion = static function (string $path): string { $time = @filemtime(__DIR__ . '/' . $path); return $time ? (string) $time : '1'; };
 
 $replace = [
     '{{VERSION}}' => htmlspecialchars($version, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
@@ -38,6 +42,12 @@ $replace = [
     '{{RELEASE_NOTES}}' => isset($release['notes']) && is_array($release['notes'])
         ? implode('', array_map(static fn ($note): string => '<li>' . htmlspecialchars((string) $note, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</li>', array_slice($release['notes'], 0, 12)))
         : '<li>Der erste signierte Beta-Release wird vorbereitet.</li>',
+    '{{CSS_VERSION}}' => $assetVersion('assets/css/site.css'),
+    '{{JS_VERSION}}' => $assetVersion('assets/js/site.js'),
+    '{{IMAGE_VERSION}}' => $assetVersion('assets/images/wintune-hero.webp'),
+    '{{LOGO_VERSION}}' => $assetVersion('assets/images/logo_wintune-transparent.webp'),
+    '{{FAVICON_VERSION}}' => $assetVersion('assets/images/favicon.png'),
+    '{{LOGO_CSS_VERSION}}' => $assetVersion('assets/css/logo.css'),
 ];
 
 header('Content-Type: text/html; charset=utf-8');

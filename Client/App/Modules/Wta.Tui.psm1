@@ -1,15 +1,21 @@
-
+﻿
 # Wta.Tui.psm1
-Import-Module (Join-Path $PSScriptRoot 'Wta.Common.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'Wta.Common.psm1') -DisableNameChecking
+
+function Write-WtaPanelHeader {
+    param([Parameter(Mandatory)][string]$Title,[string]$Subtitle = '')
+    Write-Host ''
+    Write-Host '  +----------------------------------------------------------------+' -ForegroundColor DarkMagenta
+    Write-Host ("  | {0}" -f $Title.PadRight(62)) -ForegroundColor Cyan
+    if ($Subtitle) { Write-Host ("  | {0}" -f $Subtitle.PadRight(62)) -ForegroundColor DarkGray }
+    Write-Host '  +----------------------------------------------------------------+' -ForegroundColor DarkMagenta
+}
 
 function Write-WtaBanner {
     param([Parameter(Mandatory)][pscustomobject]$Context)
 
     Clear-Host
-    Write-Host ''
-    Write-Host '  WIN TUNE ADVISOR' -ForegroundColor Cyan
-    Write-Host ("  v{0} · {1} · local-first diagnostic CLI" -f $Context.ProductVersion, $Context.Channel) -ForegroundColor DarkGray
-    Write-Host '  ------------------------------------------------------------------' -ForegroundColor DarkGray
+    Write-WtaPanelHeader -Title 'WIN TUNE ADVISOR' -Subtitle (Format-WtaText -Key 'BannerSubtitle' -Args @($Context.ProductVersion, $Context.Channel))
 }
 
 function Write-WtaPhaseProgress {
@@ -48,7 +54,7 @@ function Write-WtaCollectorStatus {
         default          { 'Gray' }
     }
 
-    $detail = if ($Operation.ErrorCode) { " — $($Operation.ErrorCode)" } else { '' }
+    $detail = if ($Operation.ErrorCode) { " - $($Operation.ErrorCode)" } else { '' }
     Write-Host ("  [{0}] {1}{2}" -f $symbol, $Operation.Id, $detail) -ForegroundColor $color
 }
 
@@ -65,7 +71,12 @@ function Get-WtaActionPicker {
 
     if ($Items.Count -eq 0) { return @() }
 
-    if (-not (Test-WtaInteractiveTerminal -Context $Context)) {
+    # Windows Console hosts can repeat a held Space key. That made a visual
+    # checkbox selector toggle twice and required a full Clear-Host redraw.
+    # The numbered multi-select below is deterministic on Windows PowerShell
+    # 5.1, PowerShell 7, Windows Terminal, and redirected console hosts.
+    $useInteractivePicker = $false
+    if (-not $useInteractivePicker -or -not (Test-WtaInteractiveTerminal -Context $Context)) {
         return Get-WtaActionPickerFallback -Context $Context -Items $Items
     }
 
@@ -75,10 +86,7 @@ function Get-WtaActionPicker {
 
     while ($running) {
         Clear-Host
-        Write-Host ''
-        Write-Host '  CHOOSE ACTIONS' -ForegroundColor Cyan
-        Write-Host '  ------------------------------------------------------------------' -ForegroundColor DarkGray
-        Write-Host '  Up/Down: move   Space: select   Enter: review   Esc: cancel' -ForegroundColor DarkGray
+        Write-WtaPanelHeader -Title (Get-WtaText -Key 'ChooseActions') -Subtitle 'Up/Down: move | Space: select | Enter: review | Esc: cancel'
         Write-Host ''
 
         for ($i = 0; $i -lt $Items.Count; $i++) {
@@ -122,15 +130,21 @@ function Get-WtaActionPickerFallback {
         [Parameter(Mandatory)][object[]]$Items
     )
 
-    Write-Host ''
-    Write-Host 'CHOOSE ACTIONS (fallback input)' -ForegroundColor Cyan
+    Write-WtaPanelHeader -Title (Get-WtaText -Key 'ChooseActions') -Subtitle (Get-WtaText -Key 'ChooseActionsHelp')
     for ($i = 0; $i -lt $Items.Count; $i++) {
         $item = $Items[$i]
-        $state = if ($item.Eligible) { '' } else { " — blocked: $($item.BlockReason)" }
-        Write-Host ("[{0}] {1}{2}" -f ($i + 1), $item.Name, $state)
+        if ($item.Eligible) {
+            Write-Host ("  [{0}] {1,-8} {2}" -f ($i + 1), (Get-WtaText -Key 'Ready'), $item.Name) -ForegroundColor Green
+        }
+        else {
+            Write-Host ("  [{0}] {1,-8} {2}" -f ($i + 1), (Get-WtaText -Key 'Blocked'), $item.Name) -ForegroundColor DarkGray
+            Write-Host ("               {0}" -f $item.BlockReason) -ForegroundColor DarkGray
+        }
+        Write-Host ("               {0}" -f $item.Description) -ForegroundColor DarkGray
     }
 
-    $raw = Read-Host 'Enter action numbers separated by comma, or press Enter to cancel'
+    Write-Host ''
+    $raw = Read-Host (Get-WtaText -Key 'ChooseReadyActions')
     if ([string]::IsNullOrWhiteSpace($raw)) { return @() }
 
     $numbers = @()
@@ -155,24 +169,22 @@ function Confirm-WtaSelectedActions {
     )
 
     if ($Actions.Count -eq 0) {
-        Write-Host 'No action selected. Nothing will be changed.' -ForegroundColor DarkGray
+        Write-Host (Get-WtaText -Key 'NoActionSelected') -ForegroundColor DarkGray
         return $false
     }
 
     Clear-Host
-    Write-Host ''
-    Write-Host '  REVIEW SELECTED ACTIONS' -ForegroundColor Cyan
-    Write-Host '  ------------------------------------------------------------------' -ForegroundColor DarkGray
+    Write-WtaPanelHeader -Title (Get-WtaText -Key 'ReviewActions') -Subtitle (Get-WtaText -Key 'ReviewActionsHelp')
     foreach ($action in $Actions) {
         Write-Host ("  [x] {0}" -f $action.Name) -ForegroundColor Gray
-        Write-Host ("      Risk: {0}" -f $action.Risk) -ForegroundColor DarkGray
+        Write-Host (Format-WtaText -Key 'Risk' -Args @($action.Risk)) -ForegroundColor DarkGray
         Write-Host ("      {0}" -f $action.Description) -ForegroundColor DarkGray
     }
     Write-Host ''
-    Write-Host '  Type START exactly to execute the selected actions.' -ForegroundColor Yellow
-    Write-Host '  Any other input returns without changing the system.' -ForegroundColor DarkGray
+    Write-Host ("  {0}" -f (Get-WtaText -Key 'TypeStart')) -ForegroundColor Yellow
+    Write-Host ("  {0}" -f (Get-WtaText -Key 'AnyOtherInput')) -ForegroundColor DarkGray
 
-    $confirmation = Read-Host 'Confirmation'
+    $confirmation = Read-Host (Get-WtaText -Key 'Confirmation')
     return ($confirmation -ceq 'START')
 }
 
@@ -180,14 +192,11 @@ function Show-WtaAssessment {
     param([Parameter(Mandatory)][pscustomobject]$Context)
 
     Clear-Host
-    Write-Host ''
-    Write-Host '  ASSESSMENT SUMMARY' -ForegroundColor Cyan
-    Write-Host '  ------------------------------------------------------------------' -ForegroundColor DarkGray
-    Write-Host ("  Safety: {0} | Admin: {1}" -f $Context.WorkStatus, $Context.IsAdministrator) -ForegroundColor DarkGray
+    Write-WtaPanelHeader -Title (Get-WtaText -Key 'AssessmentSummary') -Subtitle (Format-WtaText -Key 'AssessmentSubtitle' -Args @($Context.WorkStatus, $Context.IsAdministrator))
     Write-Host ''
 
     if ($Context.Findings.Count -eq 0) {
-        Write-Host '  No rule-based finding was generated in this sampling window.' -ForegroundColor Green
+        Write-Host ("  {0}" -f (Get-WtaText -Key 'NoFindings')) -ForegroundColor Green
     }
     else {
         foreach ($severity in @('Critical', 'Warning', 'Info', 'Optional')) {
@@ -201,18 +210,27 @@ function Show-WtaAssessment {
                 default { 'DarkGray' }
             }
 
-            Write-Host ("  {0} ({1})" -f $severity.ToUpperInvariant(), $group.Count) -ForegroundColor $color
+            $severityLabel = $severity
+            if ((Get-WtaLanguage) -eq 'de') {
+                $severityLabel = switch ($severity) {
+                    'Critical' { 'Kritisch' }
+                    'Warning' { 'Warnung' }
+                    'Info' { 'Info' }
+                    default { 'Optional' }
+                }
+            }
+            Write-Host ("  {0} ({1})" -f $severityLabel.ToUpperInvariant(), $group.Count) -ForegroundColor $color
             foreach ($finding in $group) {
                 Write-Host ("    [{0}] {1}" -f $finding.Id, $finding.Title)
                 Write-Host ("          {0}" -f $finding.Evidence) -ForegroundColor DarkGray
-                Write-Host ("          -> {0}" -f $finding.Recommendation) -ForegroundColor DarkGray
+                Write-Host ("          {0}" -f (Format-WtaText -Key 'RecommendationArrow' -Args @($finding.Recommendation))) -ForegroundColor DarkGray
             }
             Write-Host ''
         }
     }
 
-    Write-Host ("  Local report: {0}" -f (Join-Path $Context.OutputRoot 'Report.html')) -ForegroundColor DarkGray
-    [void](Read-Host 'Press Enter to continue')
+    Write-Host ("  {0}" -f (Format-WtaText -Key 'LocalReport' -Args @((Join-Path $Context.OutputRoot 'Report.html')))) -ForegroundColor DarkGray
+    [void](Read-Host (Get-WtaText -Key 'PressEnterContinue'))
 }
 
 Export-ModuleMember -Function @(

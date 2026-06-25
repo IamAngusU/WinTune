@@ -1,5 +1,5 @@
 {
-  "version": "0.2.0",
+  "version": "0.2.10",
   "files": [
     {
       "path": "Modules/Wta.Actions.psm1",

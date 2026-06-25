@@ -7,3 +7,6 @@ Server/storage/releases/.build.lock
 # OS/editor files
 .DS_Store
 Thumbs.db
+
+# Local source image retained outside the published asset path
+thisOne.png
