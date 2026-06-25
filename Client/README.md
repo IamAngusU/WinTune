@@ -1,5 +1,8 @@
 # Start WinTune
 
+Publisher: Angusu.de / Angus Uelsmann  
+Website: https://angusu.de/
+
 1. Download and extract the starter ZIP to a local folder, such as Downloads.
 2. Double-click `Start-WinTune.cmd`.
 3. Read the onscreen prompts and choose the actions you want to run.
@@ -23,3 +26,5 @@ The published beta checks the signed update endpoint. Analysis data stays option
 ```
 
 It can later verify signed package updates and roll forward only after verification. It does not download and execute arbitrary remote scripts.
+
+Windows can still show an unknown-publisher warning for `Start-WinTune.cmd` because command scripts do not carry a verified publisher identity. A verified publisher requires Authenticode signing or a signed installer/MSIX.

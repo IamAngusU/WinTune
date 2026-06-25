@@ -1,4 +1,4 @@
-
+﻿
 #requires -Version 5.1
 [CmdletBinding()]
 param(
@@ -28,10 +28,18 @@ try {
         $desktop = Join-Path $env:LOCALAPPDATA 'WinTuneAdvisor\reports'
     }
     $outputRoot = Join-Path $desktop ("WinTuneAdvisor_{0}" -f (Get-Date -Format 'yyyyMMdd_HHmmss'))
-    New-Item -ItemType Directory -Path $outputRoot -Force -ErrorAction Stop | Out-Null
+    try {
+        New-Item -ItemType Directory -Path $outputRoot -Force -ErrorAction Stop | Out-Null
+    }
+    catch {
+        $desktop = Join-Path $env:LOCALAPPDATA 'WinTuneAdvisor\reports'
+        $outputRoot = Join-Path $desktop ("WinTuneAdvisor_{0}" -f (Get-Date -Format 'yyyyMMdd_HHmmss'))
+        New-Item -ItemType Directory -Path $outputRoot -Force -ErrorAction Stop | Out-Null
+    }
     $context = New-WtaContext -OutputRoot $outputRoot -Settings $settings -BootstrapRoot $BootstrapRoot -Language $Language
 
     Write-WtaBanner -Context $context
+    Flush-WtaFunnelQueue -Context $context
     Send-WtaFunnelEvent -Context $context -EventName 'app_started'
     Write-Host (Get-WtaText -Key 'AnalysisNotice') -ForegroundColor DarkGray
     if ($context.IsAdministrator) {
@@ -69,12 +77,24 @@ try {
 }
 catch {
     if ($outputRoot) {
-        try { $_ | Out-String | Set-Content -LiteralPath (Join-Path $outputRoot 'FatalError.txt') -Encoding UTF8 } catch {}
+        try {
+            if ($null -ne $context) {
+                $errorRoot = Ensure-WtaOutputRoot -Context $context
+            } else {
+                New-Item -ItemType Directory -Path $outputRoot -Force -ErrorAction Stop | Out-Null
+                $errorRoot = $outputRoot
+            }
+            $_ | Out-String | Set-Content -LiteralPath (Join-Path $errorRoot 'FatalError.txt') -Encoding UTF8
+            $outputRoot = $errorRoot
+        } catch {}
     }
     Write-Host (Format-WtaText -Key 'FatalError' -Args @($_.Exception.Message)) -ForegroundColor Red
 }
 finally {
-    if ($null -ne $context) { try { Export-WtaReports -Context $context } catch {} }
+    if ($null -ne $context) {
+        try { Send-WtaFunnelEvent -Context $context -EventName 'app_closed' } catch {}
+        try { Export-WtaReports -Context $context } catch {}
+    }
     Write-Host ''
     if ($outputRoot) { Write-Host (Format-WtaText -Key 'SessionFolder' -Args @($outputRoot)) -ForegroundColor DarkGray }
     if (-not $NoPause) { [void](Read-Host (Get-WtaText -Key 'PressEnterClose')) }

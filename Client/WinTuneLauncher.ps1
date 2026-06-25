@@ -1,4 +1,4 @@
-
+﻿
 #requires -Version 5.1
 [CmdletBinding()]
 param(
@@ -23,6 +23,7 @@ $configObj = Get-WtaBootstrapConfig -LauncherRoot $launcherRoot
 $config = @{}
 foreach ($key in $configObj.Keys) { $config[$key] = $configObj[$key] }
 $language = Select-WtaBootstrapLanguage -Root $dataRoot
+Send-WtaBootstrapFunnelEvent -Root $dataRoot -Config $config -EventName 'language_selected' -ReleaseVersion ([string]$config.InitialVersion) -Language $language
 
 try {
     Ensure-WtaInitialVersion -LauncherRoot $launcherRoot -DataRoot $dataRoot -Config $config

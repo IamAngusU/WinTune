@@ -1,4 +1,4 @@
-
+﻿
 # Wta.Common.psm1
 # Windows PowerShell 5.1 / PowerShell 7+ compatible.
 
@@ -169,6 +169,27 @@ function Get-WtaLocalDataRoot {
     return $root
 }
 
+function Ensure-WtaOutputRoot {
+    param([Parameter(Mandatory)][pscustomobject]$Context)
+
+    $target = [string]$Context.OutputRoot
+    try {
+        if ([string]::IsNullOrWhiteSpace($target)) { throw 'OutputRoot is empty.' }
+        New-Item -ItemType Directory -Path $target -Force -ErrorAction Stop | Out-Null
+        return $target
+    }
+    catch {
+        $fallbackParent = Join-Path (Get-WtaLocalDataRoot) 'reports'
+        New-Item -ItemType Directory -Path $fallbackParent -Force -ErrorAction Stop | Out-Null
+        $leaf = if ([string]::IsNullOrWhiteSpace($target)) { "WinTuneAdvisor_{0}" -f (Get-Date -Format 'yyyyMMdd_HHmmss') } else { Split-Path -Path $target -Leaf }
+        $fallback = Join-Path $fallbackParent $leaf
+        New-Item -ItemType Directory -Path $fallback -Force -ErrorAction Stop | Out-Null
+        $Context.OutputRoot = $fallback
+        try { Add-WtaNotice -Context $Context -Kind 'OutputRootFallback' -Message ("Report folder changed to {0}" -f $fallback) } catch {}
+        return $fallback
+    }
+}
+
 function Test-WtaAdministrator {
     try {
         $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -272,6 +293,7 @@ function Write-WtaLog {
     )
 
     try {
+        $root = Ensure-WtaOutputRoot -Context $Context
         $record = [ordered]@{
             Timestamp = (Get-Date).ToString('o')
             Type      = $Type
@@ -279,7 +301,7 @@ function Write-WtaLog {
             Data      = $Data
         }
         $line = $record | ConvertTo-Json -Depth 8 -Compress
-        Add-Content -LiteralPath (Join-Path $Context.OutputRoot 'Audit.jsonl') -Value $line -Encoding UTF8
+        Add-Content -LiteralPath (Join-Path $root 'Audit.jsonl') -Value $line -Encoding UTF8
     }
     catch {
         # Logging must never stop the scan or an action.
@@ -500,6 +522,7 @@ function Get-WtaSha256 {
 function Export-WtaReports {
     param([Parameter(Mandatory)][pscustomobject]$Context)
 
+    $root = Ensure-WtaOutputRoot -Context $Context
     $report = [ordered]@{
         Metadata = [ordered]@{
             ProductName = $Context.ProductName
@@ -522,7 +545,7 @@ function Export-WtaReports {
     }
 
     try {
-        $report | ConvertTo-Json -Depth 16 | Set-Content -LiteralPath (Join-Path $Context.OutputRoot 'Report.json') -Encoding UTF8
+        $report | ConvertTo-Json -Depth 16 | Set-Content -LiteralPath (Join-Path $root 'Report.json') -Encoding UTF8
     }
     catch {
         Add-WtaNotice -Context $Context -Kind 'ReportError' -Message $_.Exception.Message
@@ -543,14 +566,14 @@ function Export-WtaReports {
             }
         }
         if ($rows.Count -gt 0) {
-            $rows | Export-Csv -LiteralPath (Join-Path $Context.OutputRoot 'Findings.csv') -NoTypeInformation -Encoding UTF8 -Delimiter ';'
+            $rows | Export-Csv -LiteralPath (Join-Path $root 'Findings.csv') -NoTypeInformation -Encoding UTF8 -Delimiter ';'
         }
     }
     catch {}
 
     try {
         $html = New-WtaHtmlReport -Context $Context
-        Set-Content -LiteralPath (Join-Path $Context.OutputRoot 'Report.html') -Value $html -Encoding UTF8
+        Set-Content -LiteralPath (Join-Path $root 'Report.html') -Value $html -Encoding UTF8
     }
     catch {
         Add-WtaNotice -Context $Context -Kind 'HtmlReportError' -Message $_.Exception.Message
@@ -618,6 +641,7 @@ Export-ModuleMember -Function @(
     'Get-WtaLanguage',
     'Get-WtaText',
     'Format-WtaText',
+    'Ensure-WtaOutputRoot',
     'Test-WtaAdministrator',
     'Test-WtaCommand',
     'New-WtaContext',

@@ -1,9 +1,15 @@
-
+﻿
 # Wta.Telemetry.psm1
 Import-Module (Join-Path $PSScriptRoot 'Wta.Common.psm1') -DisableNameChecking
 
 function Get-WtaTelemetryRoot {
     $root = Join-Path (Get-WtaLocalDataRoot) 'telemetry-queue'
+    if (-not (Test-Path -LiteralPath $root)) { New-Item -ItemType Directory -Path $root -Force | Out-Null }
+    return $root
+}
+
+function Get-WtaFunnelQueueRoot {
+    $root = Join-Path (Get-WtaLocalDataRoot) 'funnel-queue'
     if (-not (Test-Path -LiteralPath $root)) { New-Item -ItemType Directory -Path $root -Force | Out-Null }
     return $root
 }
@@ -171,18 +177,44 @@ function Send-WtaFunnelEvent {
     if ([string]::IsNullOrWhiteSpace($endpoint)) { return }
     try {
         $identity = Get-WtaInstallationIdentity
-        $body = @{
+        $event = [ordered]@{
             eventName = $EventName
             installationId = [string]$identity.InstallationId
             sessionId = [string]$Context.SessionId
             clientVersion = [string]$Context.ProductVersion
             channel = [string]$Context.Channel
             detail = $Detail
-        } | ConvertTo-Json -Compress
-        [void](Invoke-WtaJsonRequest -Uri $endpoint -Method 'POST' -Body $body -TimeoutSeconds 4)
+        }
+        $queue = Get-WtaFunnelQueueRoot
+        $path = Join-Path $queue ("{0}-{1}.json" -f (Get-Date -Format 'yyyyMMddHHmmssfff'), ([guid]::NewGuid().ToString('N')))
+        $event | ConvertTo-Json -Compress | Set-Content -LiteralPath $path -Encoding UTF8
+        Flush-WtaFunnelQueue -Context $Context
     }
     catch {
         Add-WtaNotice -Context $Context -Kind 'FunnelEventFailed' -Message $_.Exception.Message
+    }
+}
+
+function Flush-WtaFunnelQueue {
+    param([Parameter(Mandatory)][pscustomobject]$Context)
+
+    $endpoint = [string]$Context.Settings.Telemetry.FunnelEndpoint
+    if ([string]::IsNullOrWhiteSpace($endpoint)) { return }
+    try {
+        $queue = Get-WtaFunnelQueueRoot
+        $files = @(Get-ChildItem -LiteralPath $queue -Filter '*.json' -File -ErrorAction SilentlyContinue | Sort-Object Name | Select-Object -First 25)
+        if ($files.Count -eq 0) { return }
+        $events = @()
+        foreach ($file in $files) {
+            try { $events += (Get-Content -LiteralPath $file.FullName -Raw -Encoding UTF8 | ConvertFrom-Json) } catch {}
+        }
+        if ($events.Count -eq 0) { return }
+        $body = @{ events=$events } | ConvertTo-Json -Depth 8 -Compress
+        [void](Invoke-WtaJsonRequest -Uri $endpoint -Method 'POST' -Body $body -TimeoutSeconds 5)
+        foreach ($file in $files) { Remove-Item -LiteralPath $file.FullName -Force -ErrorAction SilentlyContinue }
+    }
+    catch {
+        Add-WtaNotice -Context $Context -Kind 'FunnelQueueFlushFailed' -Message $_.Exception.Message
     }
 }
 
@@ -253,7 +285,8 @@ function Invoke-WtaTelemetryUpload {
     Write-Host ''
     $payload = New-WtaTelemetryPayload -Context $Context
     $preview = $payload | ConvertTo-Json -Depth 16
-    $previewPath = Join-Path $Context.OutputRoot 'TelemetryPreview.json'
+    $outputRoot = Ensure-WtaOutputRoot -Context $Context
+    $previewPath = Join-Path $outputRoot 'TelemetryPreview.json'
     Set-Content -LiteralPath $previewPath -Value $preview -Encoding UTF8
 
     Send-WtaFunnelEvent -Context $Context -EventName 'telemetry_prompt_shown'
@@ -329,4 +362,4 @@ function Invoke-WtaFeedbackPrompt {
     }
 }
 
-Export-ModuleMember -Function @('Invoke-WtaTelemetryUpload','Invoke-WtaFeedbackPrompt','Send-WtaFunnelEvent')
+Export-ModuleMember -Function @('Invoke-WtaTelemetryUpload','Invoke-WtaFeedbackPrompt','Send-WtaFunnelEvent','Flush-WtaFunnelQueue')

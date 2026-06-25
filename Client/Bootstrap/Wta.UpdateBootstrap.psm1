@@ -1,4 +1,4 @@
-
+﻿
 # Wta.UpdateBootstrap.psm1
 # Bootstrap update logic. It never executes streamed server code.
 
@@ -14,7 +14,7 @@ function Get-WtaBootstrapConfig {
 
 function Get-WtaBootstrapRoot {
     $root = Join-Path $env:LOCALAPPDATA 'WinTuneAdvisor'
-    foreach ($dir in @($root, (Join-Path $root 'versions'), (Join-Path $root 'downloads'), (Join-Path $root 'logs'))) {
+    foreach ($dir in @($root, (Join-Path $root 'versions'), (Join-Path $root 'downloads'), (Join-Path $root 'logs'), (Join-Path $root 'funnel-queue'))) {
         if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
     }
     return $root
@@ -113,13 +113,41 @@ function Get-WtaBootstrapInstallationId {
     return [string]$identity.InstallationId
 }
 
-function Send-WtaBootstrapFunnelEvent {
+function Get-WtaBootstrapFunnelQueueRoot {
+    param([Parameter(Mandatory)][string]$Root)
+    $queue = Join-Path $Root 'funnel-queue'
+    if (-not (Test-Path -LiteralPath $queue)) { New-Item -ItemType Directory -Path $queue -Force | Out-Null }
+    return $queue
+}
+
+function Save-WtaBootstrapFunnelEvent {
     param(
         [Parameter(Mandatory)][string]$Root,
-        [Parameter(Mandatory)][hashtable]$Config,
         [Parameter(Mandatory)][string]$EventName,
         [string]$ReleaseVersion = '',
-        [string]$Detail = ''
+        [string]$Detail = '',
+        [string]$Language = ''
+    )
+
+    try {
+        $queue = Get-WtaBootstrapFunnelQueueRoot -Root $Root
+        $record = [ordered]@{
+            eventName = $EventName
+            installationId = (Get-WtaBootstrapInstallationId -Root $Root)
+            releaseVersion = $ReleaseVersion
+            channel = 'beta'
+            detail = $Detail
+        }
+        if (-not [string]::IsNullOrWhiteSpace($Language)) { $record.detail = "language=$Language" }
+        $path = Join-Path $queue ("{0}-{1}.json" -f (Get-Date -Format 'yyyyMMddHHmmssfff'), ([guid]::NewGuid().ToString('N')))
+        $record | ConvertTo-Json -Compress | Set-Content -LiteralPath $path -Encoding UTF8
+    } catch {}
+}
+
+function Flush-WtaBootstrapFunnelQueue {
+    param(
+        [Parameter(Mandatory)][string]$Root,
+        [Parameter(Mandatory)][hashtable]$Config
     )
 
     $endpoint = [string]$Config.FunnelEndpoint
@@ -127,20 +155,37 @@ function Send-WtaBootstrapFunnelEvent {
     try {
         $parsed = [uri]$endpoint
         if ($parsed.Scheme -ne 'https') { return }
-        $body = @{
-            eventName = $EventName
-            installationId = (Get-WtaBootstrapInstallationId -Root $Root)
-            releaseVersion = $ReleaseVersion
-            channel = 'beta'
-            detail = $Detail
-        } | ConvertTo-Json -Compress
+        $queue = Get-WtaBootstrapFunnelQueueRoot -Root $Root
+        $files = @(Get-ChildItem -LiteralPath $queue -Filter '*.json' -File -ErrorAction SilentlyContinue | Sort-Object Name | Select-Object -First 25)
+        if ($files.Count -eq 0) { return }
+        $events = @()
+        foreach ($file in $files) {
+            try { $events += (Get-Content -LiteralPath $file.FullName -Raw -Encoding UTF8 | ConvertFrom-Json) } catch {}
+        }
+        if ($events.Count -eq 0) { return }
+        $body = @{ events = $events } | ConvertTo-Json -Depth 8 -Compress
         $params = @{ Uri=$endpoint; Method='POST'; Body=$body; ContentType='application/json'; TimeoutSec=3; ErrorAction='Stop' }
         if ($PSVersionTable.PSVersion.Major -lt 6) { $params['UseBasicParsing'] = $true }
         Invoke-WebRequest @params | Out-Null
+        foreach ($file in $files) { Remove-Item -LiteralPath $file.FullName -Force -ErrorAction SilentlyContinue }
     }
     catch {
         Write-WtaBootstrapLog -Root $Root -Message ("Funnel event failed: {0}" -f $_.Exception.Message)
     }
+}
+
+function Send-WtaBootstrapFunnelEvent {
+    param(
+        [Parameter(Mandatory)][string]$Root,
+        [Parameter(Mandatory)][hashtable]$Config,
+        [Parameter(Mandatory)][string]$EventName,
+        [string]$ReleaseVersion = '',
+        [string]$Detail = '',
+        [string]$Language = ''
+    )
+
+    Save-WtaBootstrapFunnelEvent -Root $Root -EventName $EventName -ReleaseVersion $ReleaseVersion -Detail $Detail -Language $Language
+    Flush-WtaBootstrapFunnelQueue -Root $Root -Config $Config
 }
 
 function Get-WtaBootstrapSha256 {
@@ -311,7 +356,7 @@ function Install-WtaUpdate {
 Export-ModuleMember -Function @(
     'Get-WtaBootstrapConfig','Get-WtaBootstrapRoot','Write-WtaBootstrapLog',
     'Select-WtaBootstrapLanguage','Get-WtaBootstrapText',
-    'Get-WtaBootstrapInstallationId','Send-WtaBootstrapFunnelEvent',
+    'Get-WtaBootstrapInstallationId','Send-WtaBootstrapFunnelEvent','Flush-WtaBootstrapFunnelQueue',
     'Invoke-WtaBootstrapWeb','Test-WtaManifestEnvelope','Test-WtaVersionGreater',
     'Ensure-WtaInitialVersion','Use-WtaBundledVersionIfNewer','Get-WtaCurrentVersionRecord','Install-WtaUpdate'
 )
