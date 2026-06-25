@@ -12,9 +12,9 @@ For actions that need administrator rights, right-click `Start-WinTune.cmd` and 
 
 WinTune creates a random installation UUID in `%LOCALAPPDATA%\WinTuneAdvisor\identity.json`. It is used only to correlate voluntary beta reports from the same installation. The server stores an HMAC hash of that UUID, not the UUID itself. A beta access token is protected using Windows DPAPI for the current user.
 
-Telemetry is optional. It starts only after explicit consent and a valid beta code. See the [privacy section](https://angusu.de/docs/wintune/#telemetry) for the exact fields.
+Analysis data is optional. After the scan, WinTune writes a local preview file in the session folder and can open it in Windows Editor before the user decides. Sending is confirmed in the app and does not require a beta code. See the [privacy section](https://angusu.de/docs/wintune/#telemetry) for the exact fields.
 
-The published beta checks the signed update endpoint. Telemetry stays optional and requires a separate confirmation.
+The published beta checks the signed update endpoint. Analysis data stays optional and requires a separate confirmation.
 
 `WinTuneLauncher.ps1` is the stable entrypoint. It prepares a versioned local cache under:
 

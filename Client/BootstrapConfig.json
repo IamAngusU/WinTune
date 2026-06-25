@@ -1,7 +1,8 @@
 {
   "ProductName": "WinTune Advisor",
-  "InitialVersion": "0.2.0",
+  "InitialVersion": "0.2.8",
   "EnableUpdateCheck": true,
   "UpdateManifestUrl": "https://angusu.de/wintune/api/v1/updates/manifest?channel=beta",
+  "FunnelEndpoint": "https://angusu.de/wintune/api/v1/funnel",
   "PublicCertificateFile": "Bootstrap\\keys\\update-signing-public.cer"
 }

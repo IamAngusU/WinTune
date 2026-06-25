@@ -4,6 +4,163 @@
 
 Set-StrictMode -Version 2.0
 
+$script:WtaLanguage = 'en'
+$script:WtaTexts = @{
+    en = @{
+        AppWindowsOnly='This engine supports Windows only.'
+        AnalysisNotice='After the scan, WinTune shows the analysis file locally and asks before sending it.'
+        AdminDetected='Administrator session detected. Eligible elevated actions can be selected later.'
+        StandardDetected='Standard-user session detected. Diagnostics and current-user actions remain available.'
+        RunAsAdmin='For the full action set, close WinTune, right-click Start-WinTune.cmd, and choose "Run as administrator".'
+        ActionsMarked='Nothing is blocked silently: actions that need elevation are clearly marked.'
+        LiveAnalysis='LIVE ANALYSIS'
+        ReadOnlyScan='The scan is read-only. A partial report is retained even when a collector is unavailable.'
+        FatalError='Unexpected non-recoverable host error: {0}'
+        SessionFolder='Session folder: {0}'
+        PressEnterClose='Press Enter to close'
+        InvalidChoice='Please enter one of: {0}'
+        WorkSafetyTitle='WORK SAFETY MODE'
+        WorkSafety1='Windows cannot reliably detect unsaved work in every application.'
+        WorkSafety2='Choose the safest answer. Yes or Unknown blocks all system-changing actions.'
+        UnsavedPrompt='Is unsaved work currently open? (Y/N/U = unknown)'
+        AdminRequired='Administrator rights are required for this operation.'
+        CapabilityUnavailable='Capability unavailable: {0}'
+        BannerSubtitle='v{0} | {1} | local-first diagnostic CLI'
+        ChooseActions='CHOOSE ACTIONS'
+        ChooseActionsHelp='Enter one or more ready action numbers, separated by commas.'
+        Ready='READY'
+        Blocked='BLOCKED'
+        ChooseReadyActions='Choose ready actions (example: 1,3). Press Enter to cancel'
+        NoActionSelected='No action selected. Nothing will be changed.'
+        ReviewActions='REVIEW SELECTED ACTIONS'
+        ReviewActionsHelp='Changes run only after the exact START confirmation.'
+        Risk='Risk: {0}'
+        TypeStart='Type START exactly to execute the selected actions.'
+        AnyOtherInput='Any other input returns without changing the system.'
+        Confirmation='Confirmation'
+        AssessmentSummary='ASSESSMENT SUMMARY'
+        AssessmentSubtitle='Safety: {0} | Admin: {1}'
+        NoFindings='No rule-based finding was generated in this sampling window.'
+        RecommendationArrow='-> {0}'
+        LocalReport='Local report: {0}'
+        PressEnterContinue='Press Enter to continue'
+        Executing='Executing: {0}'
+        AnalysisData='ANALYSIS DATA'
+        AnalysisIntro='WinTune can send minimized technical analysis so we can see where setup, updates and scans fail.'
+        AnalysisIncluded='Included: Windows/version buckets, scan status, rule IDs, action statuses and capability outcomes.'
+        AnalysisExcluded='Not included: file paths, usernames, computer names, process command lines, event messages, serials or raw IP addresses.'
+        PreviewFile='Local preview file: {0}'
+        OpenPreview='Open this analysis file in Windows Editor before deciding? (Y/N)'
+        SendAnalysis='Send these analysis data now? (Y/N)'
+        TelemetryUnavailable='No telemetry endpoint is configured.'
+        TelemetryQueued='Upload not sent. Local queue: {0}'
+        TelemetryUploaded='Telemetry uploaded. Server session: {0}'
+        UploadFailed='Upload failed; local scan/report remain valid. The payload was queued locally.'
+        FeedbackPrompt='Optional: was this diagnosis helpful? 1-5, or press Enter to skip'
+        FeedbackInvalid='Feedback skipped: score must be 1 to 5.'
+        FeedbackHelped='Did it help you understand what to do? (Y/N)'
+        FeedbackSent='Feedback sent.'
+        FeedbackFailed='Feedback was not sent; local report remains valid.'
+        NtfsVolumes='NTFS volumes: {0}. Enter letters comma-separated or ALL'
+        NoVolume='No volume selected.'
+        NoValidVolume='No valid NTFS volume selected.'
+        DeletedTemp='Deleted {0} files / {1} MB; skipped {2} locked/unavailable files.'
+        StartupEntries='SUPPORTED REGISTRY RUN STARTUP ENTRIES'
+        StartupChoose='Enter one number to disable, or press Enter to cancel'
+        StartupDisable='Disable ''{0}''? Backup is created. (Y/N)'
+        DrivePrompt='Drive letter for chkdsk /scan (example C)'
+        InvalidDrive='Invalid drive letter.'
+    }
+    de = @{
+        AppWindowsOnly='Diese Engine unterstützt nur Windows.'
+        AnalysisNotice='Nach dem Scan zeigt WinTune die Analysedatei lokal an und fragt vor dem Senden nach.'
+        AdminDetected='Administratorsitzung erkannt. Geeignete erhöhte Aktionen können später ausgewählt werden.'
+        StandardDetected='Standardsitzung erkannt. Diagnosen und Benutzeraktionen bleiben verfügbar.'
+        RunAsAdmin='Für alle Aktionen WinTune schließen, Start-WinTune.cmd rechtsklicken und "Als Administrator ausführen" wählen.'
+        ActionsMarked='Nichts wird still blockiert: Aktionen mit Adminrechten sind klar markiert.'
+        LiveAnalysis='LIVE-ANALYSE'
+        ReadOnlyScan='Der Scan ist nur lesend. Ein Teilbericht bleibt erhalten, auch wenn ein Collector nicht verfügbar ist.'
+        FatalError='Unerwarteter, nicht behebbarer Host-Fehler: {0}'
+        SessionFolder='Sitzungsordner: {0}'
+        PressEnterClose='Enter drücken zum Schließen'
+        InvalidChoice='Bitte eine dieser Optionen eingeben: {0}'
+        WorkSafetyTitle='ARBEITSSCHUTZ-MODUS'
+        WorkSafety1='Windows kann ungespeicherte Arbeit nicht in jeder Anwendung zuverlässig erkennen.'
+        WorkSafety2='Wähle die sicherste Antwort. Ja oder Unbekannt blockiert alle systemändernden Aktionen.'
+        UnsavedPrompt='Ist aktuell ungespeicherte Arbeit geöffnet? (Y/N/U = unbekannt)'
+        AdminRequired='Für diese Operation sind Administratorrechte erforderlich.'
+        CapabilityUnavailable='Funktion nicht verfügbar: {0}'
+        BannerSubtitle='v{0} | {1} | lokale Diagnose-CLI'
+        ChooseActions='AKTIONEN AUSWÄHLEN'
+        ChooseActionsHelp='Eine oder mehrere bereite Aktionsnummern kommagetrennt eingeben.'
+        Ready='BEREIT'
+        Blocked='BLOCKIERT'
+        ChooseReadyActions='Bereite Aktionen wählen (Beispiel: 1,3). Enter bricht ab'
+        NoActionSelected='Keine Aktion ausgewählt. Es wird nichts geändert.'
+        ReviewActions='AUSGEWÄHLTE AKTIONEN PRÜFEN'
+        ReviewActionsHelp='Änderungen laufen erst nach der exakten START-Bestätigung.'
+        Risk='Risiko: {0}'
+        TypeStart='START exakt eingeben, um die ausgewählten Aktionen auszuführen.'
+        AnyOtherInput='Jede andere Eingabe kehrt zurück, ohne das System zu ändern.'
+        Confirmation='Bestätigung'
+        AssessmentSummary='ZUSAMMENFASSUNG'
+        AssessmentSubtitle='Sicherheit: {0} | Admin: {1}'
+        NoFindings='In diesem Messfenster wurde kein regelbasierter Fund erzeugt.'
+        RecommendationArrow='-> {0}'
+        LocalReport='Lokaler Bericht: {0}'
+        PressEnterContinue='Enter drücken zum Fortfahren'
+        Executing='Ausführen: {0}'
+        AnalysisData='ANALYSEDATEN'
+        AnalysisIntro='WinTune kann minimierte technische Analysedaten senden, damit wir sehen, wo Setup, Updates und Scans scheitern.'
+        AnalysisIncluded='Enthalten: Windows-/Versions-Buckets, Scanstatus, Rule-IDs, Aktionsstatus und Fähigkeits-Ergebnisse.'
+        AnalysisExcluded='Nicht enthalten: Dateipfade, Nutzernamen, Computernamen, Prozessbefehle, Eventmeldungen, Seriennummern oder rohe IP-Adressen.'
+        PreviewFile='Lokale Vorschau-Datei: {0}'
+        OpenPreview='Diese Analysedatei vor der Entscheidung im Windows Editor öffnen? (Y/N)'
+        SendAnalysis='Diese Analysedaten jetzt senden? (Y/N)'
+        TelemetryUnavailable='Kein Telemetrie-Endpunkt konfiguriert.'
+        TelemetryQueued='Upload nicht gesendet. Lokale Warteschlange: {0}'
+        TelemetryUploaded='Telemetrie hochgeladen. Server-Session: {0}'
+        UploadFailed='Upload fehlgeschlagen; lokaler Scan/Bericht bleibt gültig. Die Daten wurden lokal vorgemerkt.'
+        FeedbackPrompt='Optional: War diese Diagnose hilfreich? 1-5, oder Enter zum Überspringen'
+        FeedbackInvalid='Feedback übersprungen: Wert muss 1 bis 5 sein.'
+        FeedbackHelped='Hat es geholfen zu verstehen, was zu tun ist? (Y/N)'
+        FeedbackSent='Feedback gesendet.'
+        FeedbackFailed='Feedback wurde nicht gesendet; lokaler Bericht bleibt gültig.'
+        NtfsVolumes='NTFS-Volumes: {0}. Buchstaben kommagetrennt oder ALL eingeben'
+        NoVolume='Kein Volume ausgewählt.'
+        NoValidVolume='Kein gültiges NTFS-Volume ausgewählt.'
+        DeletedTemp='{0} Dateien / {1} MB gelöscht; {2} gesperrte/nicht verfügbare Dateien übersprungen.'
+        StartupEntries='UNTERSTÜTZTE REGISTRY-RUN-AUTOSTART-EINTRÄGE'
+        StartupChoose='Eine Nummer zum Deaktivieren eingeben, oder Enter zum Abbrechen'
+        StartupDisable='''{0}'' deaktivieren? Backup wird erstellt. (Y/N)'
+        DrivePrompt='Laufwerksbuchstabe für chkdsk /scan (Beispiel C)'
+        InvalidDrive='Ungültiger Laufwerksbuchstabe.'
+    }
+}
+
+function Set-WtaLanguage {
+    param([ValidateSet('en','de')][string]$Language = 'en')
+    $script:WtaLanguage = $Language
+}
+
+function Get-WtaLanguage {
+    return $script:WtaLanguage
+}
+
+function Get-WtaText {
+    param([Parameter(Mandatory)][string]$Key)
+    $table = $script:WtaTexts[$script:WtaLanguage]
+    if ($table.ContainsKey($Key)) { return [string]$table[$Key] }
+    $fallback = $script:WtaTexts['en']
+    if ($fallback.ContainsKey($Key)) { return [string]$fallback[$Key] }
+    return $Key
+}
+
+function Format-WtaText {
+    param([Parameter(Mandatory)][string]$Key,[object[]]$Args = @())
+    return ([string]::Format((Get-WtaText -Key $Key), [object[]]$Args))
+}
+
 function Get-WtaLocalDataRoot {
     $root = Join-Path $env:LOCALAPPDATA 'WinTuneAdvisor'
     if (-not (Test-Path -LiteralPath $root)) {
@@ -32,8 +189,10 @@ function New-WtaContext {
     param(
         [Parameter(Mandatory)][string]$OutputRoot,
         [Parameter(Mandatory)][hashtable]$Settings,
-        [string]$BootstrapRoot = ''
+        [string]$BootstrapRoot = '',
+        [ValidateSet('en','de')][string]$Language = 'en'
     )
+    Set-WtaLanguage -Language $Language
 
     $context = [pscustomobject]@{
         ProductName     = 'WinTune Advisor'
@@ -43,6 +202,7 @@ function New-WtaContext {
         StartedAt       = (Get-Date).ToString('o')
         OutputRoot      = $OutputRoot
         BootstrapRoot   = $BootstrapRoot
+        Language        = $Language
         Settings        = $Settings
         IsAdministrator = (Test-WtaAdministrator)
         WorkStatus      = 'Unknown'
@@ -164,12 +324,12 @@ function Invoke-WtaSafeOperation {
         if ($RequiresAdministrator -and -not $Context.IsAdministrator) {
             $result.Status = 'Skipped'
             $result.ErrorCode = 'ADMIN_REQUIRED'
-            $result.ErrorMessage = 'Administrator rights are required for this operation.'
+            $result.ErrorMessage = Get-WtaText -Key 'AdminRequired'
         }
         elseif (-not [string]::IsNullOrWhiteSpace($Capability) -and -not [bool]$Context.Capabilities[$Capability]) {
             $result.Status = 'Skipped'
             $result.ErrorCode = 'CAPABILITY_UNAVAILABLE'
-            $result.ErrorMessage = "Capability unavailable: $Capability"
+            $result.ErrorMessage = Format-WtaText -Key 'CapabilityUnavailable' -Args @($Capability)
         }
         else {
             $result.Data = & $Primary
@@ -235,7 +395,7 @@ function Get-WtaChoice {
             if ($value -ieq $allowedValue) { return $allowedValue }
         }
 
-        Write-Host ("Please enter one of: {0}" -f ($Allowed -join ', ')) -ForegroundColor Yellow
+        Write-Host (Format-WtaText -Key 'InvalidChoice' -Args @($Allowed -join ', ')) -ForegroundColor Yellow
     }
 }
 
@@ -243,11 +403,11 @@ function Set-WtaWorkSafetyMode {
     param([Parameter(Mandatory)][pscustomobject]$Context)
 
     Write-Host ''
-    Write-Host 'WORK SAFETY MODE' -ForegroundColor Cyan
-    Write-Host 'Windows cannot reliably detect unsaved work in every application.' -ForegroundColor DarkGray
-    Write-Host 'Choose the safest answer. Yes or Unknown blocks all system-changing actions.' -ForegroundColor DarkGray
+    Write-Host (Get-WtaText -Key 'WorkSafetyTitle') -ForegroundColor Cyan
+    Write-Host (Get-WtaText -Key 'WorkSafety1') -ForegroundColor DarkGray
+    Write-Host (Get-WtaText -Key 'WorkSafety2') -ForegroundColor DarkGray
 
-    $choice = Get-WtaChoice -Prompt 'Is unsaved work currently open? (Y/N/U = unknown)' -Allowed @('Y', 'N', 'U') -Default 'U'
+    $choice = Get-WtaChoice -Prompt (Get-WtaText -Key 'UnsavedPrompt') -Allowed @('Y', 'N', 'U') -Default 'U'
 
     if ($choice -eq 'N') {
         $Context.WorkStatus = 'SavedConfirmed'
@@ -454,6 +614,10 @@ th{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:#68717b}
 
 Export-ModuleMember -Function @(
     'Get-WtaLocalDataRoot',
+    'Set-WtaLanguage',
+    'Get-WtaLanguage',
+    'Get-WtaText',
+    'Format-WtaText',
     'Test-WtaAdministrator',
     'Test-WtaCommand',
     'New-WtaContext',

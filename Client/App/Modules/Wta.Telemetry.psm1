@@ -160,6 +160,32 @@ function Invoke-WtaJsonRequest {
     return ConvertTo-WtaHashtable -InputObject ($response.Content | ConvertFrom-Json)
 }
 
+function Send-WtaFunnelEvent {
+    param(
+        [Parameter(Mandatory)][pscustomobject]$Context,
+        [Parameter(Mandatory)][string]$EventName,
+        [string]$Detail = ''
+    )
+
+    $endpoint = [string]$Context.Settings.Telemetry.FunnelEndpoint
+    if ([string]::IsNullOrWhiteSpace($endpoint)) { return }
+    try {
+        $identity = Get-WtaInstallationIdentity
+        $body = @{
+            eventName = $EventName
+            installationId = [string]$identity.InstallationId
+            sessionId = [string]$Context.SessionId
+            clientVersion = [string]$Context.ProductVersion
+            channel = [string]$Context.Channel
+            detail = $Detail
+        } | ConvertTo-Json -Compress
+        [void](Invoke-WtaJsonRequest -Uri $endpoint -Method 'POST' -Body $body -TimeoutSeconds 4)
+    }
+    catch {
+        Add-WtaNotice -Context $Context -Kind 'FunnelEventFailed' -Message $_.Exception.Message
+    }
+}
+
 function Get-WtaStoredToken {
     $identity = Get-WtaInstallationIdentity
     if (-not $identity.ContainsKey('TokenProtectedBase64')) { return $null }
@@ -199,12 +225,9 @@ function Get-WtaTelemetryToken {
     $endpoint = [string]$Context.Settings.Telemetry.EnrollmentEndpoint
     if ([string]::IsNullOrWhiteSpace($endpoint)) { return $null }
 
-    $betaCode = Read-Host 'Optional beta enrollment code (press Enter to skip upload)'
-    if ([string]::IsNullOrWhiteSpace($betaCode)) { return $null }
-
     $identity = Get-WtaInstallationIdentity
     try {
-        $body = @{ betaCode=$betaCode; installationId=$identity.InstallationId } | ConvertTo-Json -Compress
+        $body = @{ installationId=$identity.InstallationId } | ConvertTo-Json -Compress
         $result = Invoke-WtaJsonRequest -Uri $endpoint -Method 'POST' -Body $body -TimeoutSeconds 8
         if ($result.ContainsKey('accessToken') -and $result.accessToken) {
             [void](Set-WtaStoredToken -Token ([string]$result.accessToken))
@@ -223,31 +246,40 @@ function Invoke-WtaTelemetryUpload {
 
     $endpoint = [string]$Context.Settings.Telemetry.EventEndpoint
     if ([string]::IsNullOrWhiteSpace($endpoint)) {
-        Add-WtaNotice -Context $Context -Kind 'TelemetryUnavailable' -Message 'No telemetry endpoint is configured.'
+        Add-WtaNotice -Context $Context -Kind 'TelemetryUnavailable' -Message (Get-WtaText -Key 'TelemetryUnavailable')
         return
     }
 
     Write-Host ''
-    Write-Host 'OPTIONAL BETA TELEMETRY' -ForegroundColor Cyan
-    Write-Host 'Only a minimized technical payload is sent: OS buckets, capability outcomes, rule IDs and action statuses.' -ForegroundColor DarkGray
-    Write-Host 'No file paths, usernames, computer names, process command lines, event messages, serials or IP addresses are included.' -ForegroundColor DarkGray
-
-    $choice = Get-WtaChoice -Prompt 'Send anonymized beta diagnostics now? (Y/N)' -Allowed @('Y','N') -Default 'N'
-    if ($choice -ne 'Y') {
-        $Context.Decisions += [pscustomobject]@{ Timestamp=(Get-Date).ToString('o'); ActionId='Telemetry'; Decision='Declined' }
-        return
-    }
-
     $payload = New-WtaTelemetryPayload -Context $Context
     $preview = $payload | ConvertTo-Json -Depth 16
     $previewPath = Join-Path $Context.OutputRoot 'TelemetryPreview.json'
     Set-Content -LiteralPath $previewPath -Value $preview -Encoding UTF8
-    Write-Host ("Payload preview saved locally: {0}" -f $previewPath) -ForegroundColor DarkGray
+
+    Send-WtaFunnelEvent -Context $Context -EventName 'telemetry_prompt_shown'
+    Write-Host (Get-WtaText -Key 'AnalysisData') -ForegroundColor Cyan
+    Write-Host (Get-WtaText -Key 'AnalysisIntro') -ForegroundColor DarkGray
+    Write-Host (Get-WtaText -Key 'AnalysisIncluded') -ForegroundColor DarkGray
+    Write-Host (Get-WtaText -Key 'AnalysisExcluded') -ForegroundColor DarkGray
+    Write-Host (Format-WtaText -Key 'PreviewFile' -Args @($previewPath)) -ForegroundColor DarkGray
+
+    $openChoice = Get-WtaChoice -Prompt (Get-WtaText -Key 'OpenPreview') -Allowed @('Y','N') -Default 'Y'
+    if ($openChoice -eq 'Y') {
+        try { Start-Process -FilePath 'notepad.exe' -ArgumentList "`"$previewPath`"" | Out-Null } catch {}
+    }
+
+    $choice = Get-WtaChoice -Prompt (Get-WtaText -Key 'SendAnalysis') -Allowed @('Y','N') -Default 'Y'
+    if ($choice -ne 'Y') {
+        $Context.Decisions += [pscustomobject]@{ Timestamp=(Get-Date).ToString('o'); ActionId='Telemetry'; Decision='Declined' }
+        Send-WtaFunnelEvent -Context $Context -EventName 'telemetry_declined'
+        return
+    }
 
     $token = Get-WtaTelemetryToken -Context $Context
     if (-not $token) {
         $queued = Save-WtaTelemetryQueue -Context $Context -Payload $payload -Reason 'No enrollment token or enrollment unavailable.'
-        Add-WtaNotice -Context $Context -Kind 'TelemetryQueued' -Message ("Upload not sent. Local queue: {0}" -f $queued)
+        Add-WtaNotice -Context $Context -Kind 'TelemetryQueued' -Message (Format-WtaText -Key 'TelemetryQueued' -Args @($queued))
+        Send-WtaFunnelEvent -Context $Context -EventName 'telemetry_queued' -Detail 'no-token'
         return
     }
 
@@ -255,12 +287,14 @@ function Invoke-WtaTelemetryUpload {
         $body = $payload | ConvertTo-Json -Depth 16 -Compress
         $result = Invoke-WtaJsonRequest -Uri $endpoint -Method 'POST' -Body $body -Headers @{ Authorization = "Bearer $token" } -TimeoutSeconds 8
         $Context.Decisions += [pscustomobject]@{ Timestamp=(Get-Date).ToString('o'); ActionId='Telemetry'; Decision='Uploaded' }
-        Write-Host ("Telemetry uploaded. Server session: {0}" -f $result.sessionId) -ForegroundColor Green
+        Write-Host (Format-WtaText -Key 'TelemetryUploaded' -Args @($result.sessionId)) -ForegroundColor Green
+        Send-WtaFunnelEvent -Context $Context -EventName 'telemetry_uploaded'
     }
     catch {
         $queued = Save-WtaTelemetryQueue -Context $Context -Payload $payload -Reason $_.Exception.Message
-        Add-WtaNotice -Context $Context -Kind 'TelemetryQueued' -Message ("Upload failed; payload queued locally: {0}" -f $queued)
-        Write-Host 'Upload failed; local scan/report remain valid. The payload was queued locally.' -ForegroundColor Yellow
+        Add-WtaNotice -Context $Context -Kind 'TelemetryQueued' -Message (Format-WtaText -Key 'TelemetryQueued' -Args @($queued))
+        Send-WtaFunnelEvent -Context $Context -EventName 'telemetry_queued' -Detail 'upload-failed'
+        Write-Host (Get-WtaText -Key 'UploadFailed') -ForegroundColor Yellow
     }
 }
 
@@ -275,24 +309,24 @@ function Invoke-WtaFeedbackPrompt {
     if (-not $token) { return }
 
     Write-Host ''
-    $scoreRaw = Read-Host 'Optional: was this diagnosis helpful? 1-5, or press Enter to skip'
+    $scoreRaw = Read-Host (Get-WtaText -Key 'FeedbackPrompt')
     if ([string]::IsNullOrWhiteSpace($scoreRaw)) { return }
     $score = 0
     if (-not [int]::TryParse($scoreRaw, [ref]$score) -or $score -lt 1 -or $score -gt 5) {
-        Write-Host 'Feedback skipped: score must be 1 to 5.' -ForegroundColor DarkGray
+        Write-Host (Get-WtaText -Key 'FeedbackInvalid') -ForegroundColor DarkGray
         return
     }
 
-    $helpedChoice = Get-WtaChoice -Prompt 'Did it help you understand what to do? (Y/N)' -Allowed @('Y','N') -Default 'Y'
+    $helpedChoice = Get-WtaChoice -Prompt (Get-WtaText -Key 'FeedbackHelped') -Allowed @('Y','N') -Default 'Y'
     $body = @{ sessionId=$Context.SessionId; score=$score; helped=($helpedChoice -eq 'Y') } | ConvertTo-Json -Compress
     try {
         [void](Invoke-WtaJsonRequest -Uri $endpoint -Method 'POST' -Body $body -Headers @{ Authorization = "Bearer $token" } -TimeoutSeconds 8)
-        Write-Host 'Feedback sent.' -ForegroundColor Green
+        Write-Host (Get-WtaText -Key 'FeedbackSent') -ForegroundColor Green
     }
     catch {
         Add-WtaNotice -Context $Context -Kind 'FeedbackUploadFailed' -Message $_.Exception.Message
-        Write-Host 'Feedback was not sent; local report remains valid.' -ForegroundColor Yellow
+        Write-Host (Get-WtaText -Key 'FeedbackFailed') -ForegroundColor Yellow
     }
 }
 
-Export-ModuleMember -Function @('Invoke-WtaTelemetryUpload','Invoke-WtaFeedbackPrompt')
+Export-ModuleMember -Function @('Invoke-WtaTelemetryUpload','Invoke-WtaFeedbackPrompt','Send-WtaFunnelEvent')

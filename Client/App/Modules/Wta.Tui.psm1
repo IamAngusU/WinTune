@@ -15,7 +15,7 @@ function Write-WtaBanner {
     param([Parameter(Mandatory)][pscustomobject]$Context)
 
     Clear-Host
-    Write-WtaPanelHeader -Title 'WIN TUNE ADVISOR' -Subtitle ("v{0} | {1} | local-first diagnostic CLI" -f $Context.ProductVersion, $Context.Channel)
+    Write-WtaPanelHeader -Title 'WIN TUNE ADVISOR' -Subtitle (Format-WtaText -Key 'BannerSubtitle' -Args @($Context.ProductVersion, $Context.Channel))
 }
 
 function Write-WtaPhaseProgress {
@@ -86,7 +86,7 @@ function Get-WtaActionPicker {
 
     while ($running) {
         Clear-Host
-        Write-WtaPanelHeader -Title 'CHOOSE ACTIONS' -Subtitle 'Up/Down: move | Space: select | Enter: review | Esc: cancel'
+        Write-WtaPanelHeader -Title (Get-WtaText -Key 'ChooseActions') -Subtitle 'Up/Down: move | Space: select | Enter: review | Esc: cancel'
         Write-Host ''
 
         for ($i = 0; $i -lt $Items.Count; $i++) {
@@ -130,21 +130,21 @@ function Get-WtaActionPickerFallback {
         [Parameter(Mandatory)][object[]]$Items
     )
 
-    Write-WtaPanelHeader -Title 'CHOOSE ACTIONS' -Subtitle 'Enter one or more ready action numbers, separated by commas.'
+    Write-WtaPanelHeader -Title (Get-WtaText -Key 'ChooseActions') -Subtitle (Get-WtaText -Key 'ChooseActionsHelp')
     for ($i = 0; $i -lt $Items.Count; $i++) {
         $item = $Items[$i]
         if ($item.Eligible) {
-            Write-Host ("  [{0}] READY    {1}" -f ($i + 1), $item.Name) -ForegroundColor Green
+            Write-Host ("  [{0}] {1,-8} {2}" -f ($i + 1), (Get-WtaText -Key 'Ready'), $item.Name) -ForegroundColor Green
         }
         else {
-            Write-Host ("  [{0}] BLOCKED  {1}" -f ($i + 1), $item.Name) -ForegroundColor DarkGray
+            Write-Host ("  [{0}] {1,-8} {2}" -f ($i + 1), (Get-WtaText -Key 'Blocked'), $item.Name) -ForegroundColor DarkGray
             Write-Host ("               {0}" -f $item.BlockReason) -ForegroundColor DarkGray
         }
         Write-Host ("               {0}" -f $item.Description) -ForegroundColor DarkGray
     }
 
     Write-Host ''
-    $raw = Read-Host 'Choose ready actions (example: 1,3). Press Enter to cancel'
+    $raw = Read-Host (Get-WtaText -Key 'ChooseReadyActions')
     if ([string]::IsNullOrWhiteSpace($raw)) { return @() }
 
     $numbers = @()
@@ -169,22 +169,22 @@ function Confirm-WtaSelectedActions {
     )
 
     if ($Actions.Count -eq 0) {
-        Write-Host 'No action selected. Nothing will be changed.' -ForegroundColor DarkGray
+        Write-Host (Get-WtaText -Key 'NoActionSelected') -ForegroundColor DarkGray
         return $false
     }
 
     Clear-Host
-    Write-WtaPanelHeader -Title 'REVIEW SELECTED ACTIONS' -Subtitle 'Changes run only after the exact START confirmation.'
+    Write-WtaPanelHeader -Title (Get-WtaText -Key 'ReviewActions') -Subtitle (Get-WtaText -Key 'ReviewActionsHelp')
     foreach ($action in $Actions) {
         Write-Host ("  [x] {0}" -f $action.Name) -ForegroundColor Gray
-        Write-Host ("      Risk: {0}" -f $action.Risk) -ForegroundColor DarkGray
+        Write-Host (Format-WtaText -Key 'Risk' -Args @($action.Risk)) -ForegroundColor DarkGray
         Write-Host ("      {0}" -f $action.Description) -ForegroundColor DarkGray
     }
     Write-Host ''
-    Write-Host '  Type START exactly to execute the selected actions.' -ForegroundColor Yellow
-    Write-Host '  Any other input returns without changing the system.' -ForegroundColor DarkGray
+    Write-Host ("  {0}" -f (Get-WtaText -Key 'TypeStart')) -ForegroundColor Yellow
+    Write-Host ("  {0}" -f (Get-WtaText -Key 'AnyOtherInput')) -ForegroundColor DarkGray
 
-    $confirmation = Read-Host 'Confirmation'
+    $confirmation = Read-Host (Get-WtaText -Key 'Confirmation')
     return ($confirmation -ceq 'START')
 }
 
@@ -192,11 +192,11 @@ function Show-WtaAssessment {
     param([Parameter(Mandatory)][pscustomobject]$Context)
 
     Clear-Host
-    Write-WtaPanelHeader -Title 'ASSESSMENT SUMMARY' -Subtitle ("Safety: {0} | Admin: {1}" -f $Context.WorkStatus, $Context.IsAdministrator)
+    Write-WtaPanelHeader -Title (Get-WtaText -Key 'AssessmentSummary') -Subtitle (Format-WtaText -Key 'AssessmentSubtitle' -Args @($Context.WorkStatus, $Context.IsAdministrator))
     Write-Host ''
 
     if ($Context.Findings.Count -eq 0) {
-        Write-Host '  No rule-based finding was generated in this sampling window.' -ForegroundColor Green
+        Write-Host ("  {0}" -f (Get-WtaText -Key 'NoFindings')) -ForegroundColor Green
     }
     else {
         foreach ($severity in @('Critical', 'Warning', 'Info', 'Optional')) {
@@ -210,18 +210,27 @@ function Show-WtaAssessment {
                 default { 'DarkGray' }
             }
 
-            Write-Host ("  {0} ({1})" -f $severity.ToUpperInvariant(), $group.Count) -ForegroundColor $color
+            $severityLabel = $severity
+            if ((Get-WtaLanguage) -eq 'de') {
+                $severityLabel = switch ($severity) {
+                    'Critical' { 'Kritisch' }
+                    'Warning' { 'Warnung' }
+                    'Info' { 'Info' }
+                    default { 'Optional' }
+                }
+            }
+            Write-Host ("  {0} ({1})" -f $severityLabel.ToUpperInvariant(), $group.Count) -ForegroundColor $color
             foreach ($finding in $group) {
                 Write-Host ("    [{0}] {1}" -f $finding.Id, $finding.Title)
                 Write-Host ("          {0}" -f $finding.Evidence) -ForegroundColor DarkGray
-                Write-Host ("          -> {0}" -f $finding.Recommendation) -ForegroundColor DarkGray
+                Write-Host ("          {0}" -f (Format-WtaText -Key 'RecommendationArrow' -Args @($finding.Recommendation))) -ForegroundColor DarkGray
             }
             Write-Host ''
         }
     }
 
-    Write-Host ("  Local report: {0}" -f (Join-Path $Context.OutputRoot 'Report.html')) -ForegroundColor DarkGray
-    [void](Read-Host 'Press Enter to continue')
+    Write-Host ("  {0}" -f (Format-WtaText -Key 'LocalReport' -Args @((Join-Path $Context.OutputRoot 'Report.html')))) -ForegroundColor DarkGray
+    [void](Read-Host (Get-WtaText -Key 'PressEnterContinue'))
 }
 
 Export-ModuleMember -Function @(
