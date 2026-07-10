@@ -12,6 +12,7 @@ WinTune inspects Windows 10 and 11 systems, presents evidence for each recommend
 - State-changing actions require selection and an exact `START` confirmation.
 - Work Safety Mode blocks actions when unsaved work may exist.
 - Reports and rollback records stay on the local machine.
+- Deleted pictures can be inventoried from the Windows Recycle Bin and restored only after explicit selection and confirmation.
 - Optional beta telemetry is minimized, consent-based, and protected by an enrollment token.
 
 ## Release integrity
@@ -50,6 +51,8 @@ Release publication is manually initiated through GitHub Actions and requires ap
 ## Boundaries
 
 WinTune does not update drivers, modify firmware, disable security software, change arbitrary services, edit pagefile settings, use registry cleaners, or perform SSD defragmentation. Read [Tests/TestMatrix.md](Tests/TestMatrix.md) before testing an action on a non-critical machine.
+
+If a Recycle Bin was already emptied, WinTune does not perform raw-disk recovery: writing to the affected drive can permanently reduce recovery chances. It provides guidance to stop using that drive and recover to a different drive with a trusted dedicated tool.
 
 ## License
 

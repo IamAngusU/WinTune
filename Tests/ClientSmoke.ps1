@@ -16,4 +16,20 @@ Import-Module $common -Force -DisableNameChecking
 if (-not (Get-Command Get-WtaJsonFile -ErrorAction SilentlyContinue)) { throw 'Get-WtaJsonFile was not exported.' }
 $settings = Get-WtaJsonFile -Path (Join-Path $ClientRoot 'App\appsettings.json')
 if (-not ($settings -is [hashtable]) -or -not $settings.ContainsKey('Telemetry')) { throw 'Settings conversion did not produce the expected hashtable.' }
+
+$release = Get-Content -LiteralPath (Join-Path $ClientRoot 'App\release.json') -Raw | ConvertFrom-Json
+if ([string]$release.version -ne [string]$settings.ProductVersion) { throw 'release.json version does not match appsettings.json.' }
+foreach ($entry in @($release.files)) {
+    $path = Join-Path (Join-Path $ClientRoot 'App') $entry.path
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "Release file is missing: $($entry.path)" }
+    $actual = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($actual -ne [string]$entry.sha256) { throw "Release hash mismatch: $($entry.path)" }
+}
+
+foreach ($language in @('en','de')) {
+    Set-WtaLanguage -Language $language
+    foreach ($key in @('RecycleBinPictures','RecycleBinChoose','RecycleBinRestoreConfirm','PermanentDeletionGuidance')) {
+        if ((Get-WtaText -Key $key) -eq $key) { throw "Missing $language text: $key" }
+    }
+}
 Write-Host 'Client PowerShell smoke test passed.' -ForegroundColor Green

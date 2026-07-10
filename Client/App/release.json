@@ -1,37 +1,37 @@
 {
-  "version": "0.2.10",
-  "files": [
-    {
-      "path": "Modules/Wta.Actions.psm1",
-      "sha256": "014acf04548899f0cba3536f65a6067700346f48ffd928924e071e910e9eb0c8"
-    },
-    {
-      "path": "Modules/Wta.Collectors.psm1",
-      "sha256": "4554ca0f98e93b58ba6a06203177b03c9f1cf9fc76ff73a3fb0b3adb7eabc03a"
-    },
-    {
-      "path": "Modules/Wta.Common.psm1",
-      "sha256": "7a8f151b9e0ec3b4b751a626e7ed59b7ccc82f212e00e208afbb54124fa7c5fc"
-    },
-    {
-      "path": "Modules/Wta.Rules.psm1",
-      "sha256": "44a258a40394dd3bd21a6f80ab2c593e1e6c4c57b7194e67b4bdd2f204a60167"
-    },
-    {
-      "path": "Modules/Wta.Telemetry.psm1",
-      "sha256": "6d6dbe446fb3f2dd598c3c3ad66047e4984dacd4313aae43f23cf27b035f4f54"
-    },
-    {
-      "path": "Modules/Wta.Tui.psm1",
-      "sha256": "741fa414e664a324d0530947041cbe1e7fcc000374f69a92bc33c6900cb730c6"
-    },
-    {
-      "path": "WinTuneAdvisor.ps1",
-      "sha256": "7560b84fa9d457dbd6e0a183cf431fd0779d83b3a5240b084f352206460f9d79"
-    },
-    {
-      "path": "appsettings.json",
-      "sha256": "56c7a7d54e155b43bee64fbcf91c0210a518b18201258b718691415ca6024321"
-    }
-  ]
+    "version": "0.2.11",
+    "files": [
+        {
+            "path": "Modules/Wta.Actions.psm1",
+            "sha256": "0e609e56fc5f5df205c837c0c1e35cd3444988ffcc195ca66fb86aac62d32c1e"
+        },
+        {
+            "path": "Modules/Wta.Collectors.psm1",
+            "sha256": "e2a623c48bcd73278d74753077d00364910b4d6d147bf577a80e668f8d6e74b8"
+        },
+        {
+            "path": "Modules/Wta.Common.psm1",
+            "sha256": "e7b7fc4562171fe1eb012cd66c531f275f2fa4ec670328dc93ae176204241933"
+        },
+        {
+            "path": "Modules/Wta.Rules.psm1",
+            "sha256": "cc17baeec9611bee99c810860716cf61577e0f2dc34dac7983f9d611831f9b30"
+        },
+        {
+            "path": "Modules/Wta.Telemetry.psm1",
+            "sha256": "6df2df03d93cd4b66ced3c1f64f82fd03cc9902e154e2fd2cfa2f56e0d302556"
+        },
+        {
+            "path": "Modules/Wta.Tui.psm1",
+            "sha256": "7e5e92f696c5f2dd7942d21bdee3891c4da4ca55b72f51f8a7e79dd72aa868bf"
+        },
+        {
+            "path": "WinTuneAdvisor.ps1",
+            "sha256": "4a20940023fc5097d130598fedf79d17e0a4e5bc91b26359b1a0f94a8dddda28"
+        },
+        {
+            "path": "appsettings.json",
+            "sha256": "156288741e8b421bacc511e0952d57ed7a953384f08130f6bb2f83525d630607"
+        }
+    ]
 }

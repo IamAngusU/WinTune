@@ -19,6 +19,12 @@ Analysis data is optional. After the scan, WinTune writes a local preview file i
 
 The published beta checks the signed update endpoint. Analysis data stays optional and requires a separate confirmation.
 
+## Deleted-picture recovery
+
+WinTune can list supported picture formats currently present in the Windows Recycle Bin and save a local CSV inventory with their original location and deletion date. It restores only the picture numbers the user selects after a separate `RESTORE` confirmation, and uses Windows' own Recycle Bin restore operation.
+
+If the Recycle Bin has already been emptied, recovery is time-sensitive. Stop writing files to the affected drive and recover to a different drive with a trusted recovery tool; WinTune does not attempt a risky raw-disk recovery or write recovered data to the affected drive.
+
 `WinTuneLauncher.ps1` is the stable entrypoint. It prepares a versioned local cache under:
 
 ```text

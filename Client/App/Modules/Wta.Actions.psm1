@@ -14,7 +14,8 @@ function Get-WtaActionCatalog {
             [pscustomobject]@{ Id='ReduceAnimations'; Name='UI-Animationen reduzieren'; Risk='Niedrig'; RequiresAdmin=$false; RequiresSavedWork=$true; Description='Reduziert Fenster-/Client-Animationen für den aktuellen Benutzer. Manche Shell-Elemente brauchen ggf. Ab- und Anmeldung.' },
             [pscustomobject]@{ Id='HighPerformancePlan'; Name='Energieplan Höchstleistung aktivieren'; Risk='Niedrig'; RequiresAdmin=$false; RequiresSavedWork=$false; Description='Aktiviert Höchstleistung und speichert das vorherige Schema zur manuellen Wiederherstellung.' },
             [pscustomobject]@{ Id='RunDiskScan'; Name='Online-Datenträgerprüfung ausführen'; Risk='Mittel'; RequiresAdmin=$true; RequiresSavedWork=$true; Description='Führt chkdsk /scan auf einem gewählten Volume aus. Das kann zusätzliche Speicher-I/O erzeugen.' },
-            [pscustomobject]@{ Id='ReviewStartup'; Name='Registry-Run-Autostart-Einträge prüfen'; Risk='Niedrig'; RequiresAdmin=$false; RequiresSavedWork=$true; Description='Zeigt unterstützte Registry-Run-Einträge; beim Deaktivieren wird vorher immer ein JSON-Backup erstellt.' }
+            [pscustomobject]@{ Id='ReviewStartup'; Name='Registry-Run-Autostart-Einträge prüfen'; Risk='Niedrig'; RequiresAdmin=$false; RequiresSavedWork=$true; Description='Zeigt unterstützte Registry-Run-Einträge; beim Deaktivieren wird vorher immer ein JSON-Backup erstellt.' },
+            [pscustomobject]@{ Id='RecoverDeletedPictures'; Name='Gelöschte Bilder im Papierkorb finden und wiederherstellen'; Risk='Niedrig'; RequiresAdmin=$false; RequiresSavedWork=$true; Description='Erstellt zuerst eine lokale Liste von Bilddateien im Papierkorb. Ausgewählte Dateien werden nach einer zweiten Bestätigung an ihren ursprünglichen Ort wiederhergestellt.' }
         )
     }
     return @(
@@ -26,7 +27,8 @@ function Get-WtaActionCatalog {
         [pscustomobject]@{ Id='ReduceAnimations'; Name='Reduce UI animations'; Risk='Low'; RequiresAdmin=$false; RequiresSavedWork=$true; Description='Reduces window/client-area animations for the current user. Some shell elements may need sign-out.' },
         [pscustomobject]@{ Id='HighPerformancePlan'; Name='Activate High performance power plan'; Risk='Low'; RequiresAdmin=$false; RequiresSavedWork=$false; Description='Activates High performance and records the previous scheme for manual restoration.' },
         [pscustomobject]@{ Id='RunDiskScan'; Name='Run online disk scan'; Risk='Medium'; RequiresAdmin=$true; RequiresSavedWork=$true; Description='Runs chkdsk /scan on a chosen volume. It may add storage I/O.' },
-        [pscustomobject]@{ Id='ReviewStartup'; Name='Review Registry Run startup entries'; Risk='Low'; RequiresAdmin=$false; RequiresSavedWork=$true; Description='Shows supported Registry Run entries; disabling one always creates a JSON backup first.' }
+        [pscustomobject]@{ Id='ReviewStartup'; Name='Review Registry Run startup entries'; Risk='Low'; RequiresAdmin=$false; RequiresSavedWork=$true; Description='Shows supported Registry Run entries; disabling one always creates a JSON backup first.' },
+        [pscustomobject]@{ Id='RecoverDeletedPictures'; Name='Find and restore deleted pictures from Recycle Bin'; Risk='Low'; RequiresAdmin=$false; RequiresSavedWork=$true; Description='First creates a local inventory of picture files in Recycle Bin. Selected files are restored to their original location only after a second confirmation.' }
     )
 }
 
@@ -310,10 +312,105 @@ function Invoke-WtaOneAction {
             'ReviewStartup' {
                 Invoke-WtaStartupReview -Context $Context
             }
+
+            'RecoverDeletedPictures' {
+                Invoke-WtaDeletedPictureRecovery -Context $Context
+            }
         }
     }
     catch {
         Add-WtaActionResult -Context $Context -ActionId $Action.Id -Status 'FailedNonFatal' -Details $_.Exception.Message | Out-Null
+    }
+}
+
+function Get-WtaRecycleBinPictures {
+    $extensions = @('.jpg','.jpeg','.png','.gif','.bmp','.tif','.tiff','.webp','.heic','.heif','.raw','.dng','.cr2','.nef','.arw')
+    $shell = New-Object -ComObject Shell.Application
+    $recycleBin = $shell.Namespace(0xA)
+    if ($null -eq $recycleBin) { throw (Get-WtaText -Key 'RecycleBinUnavailable') }
+
+    $pictures = @()
+    foreach ($item in @($recycleBin.Items())) {
+        $extension = [System.IO.Path]::GetExtension([string]$item.Name).ToLowerInvariant()
+        if ($extensions -notcontains $extension) { continue }
+        $pictures += [pscustomobject]@{
+            Name = [string]$item.Name
+            OriginalLocation = [string]$recycleBin.GetDetailsOf($item, 1)
+            DeletedAt = [string]$recycleBin.GetDetailsOf($item, 2)
+            Size = [string]$recycleBin.GetDetailsOf($item, 3)
+            ShellItem = $item
+        }
+    }
+    return @($pictures | Sort-Object Name)
+}
+
+function Invoke-WtaDeletedPictureRecovery {
+    param([Parameter(Mandatory)][pscustomobject]$Context)
+
+    try {
+        $pictures = @(Get-WtaRecycleBinPictures)
+        $inventoryPath = Join-Path (Ensure-WtaOutputRoot -Context $Context) 'DeletedPictures-RecycleBin.csv'
+        @($pictures | Select-Object Name, OriginalLocation, DeletedAt, Size) | Export-Csv -LiteralPath $inventoryPath -NoTypeInformation -Encoding UTF8
+
+        if ($pictures.Count -eq 0) {
+            Write-Host (Get-WtaText -Key 'RecycleBinNoPictures') -ForegroundColor Yellow
+            Write-Host (Get-WtaText -Key 'PermanentDeletionGuidance') -ForegroundColor Yellow
+            Add-WtaActionResult -Context $Context -ActionId 'RecoverDeletedPictures' -Status 'Skipped' -Details (Format-WtaText -Key 'RecycleBinInventoryEmpty' -Args @($inventoryPath)) | Out-Null
+            return
+        }
+
+        Write-Host ''
+        Write-Host (Get-WtaText -Key 'RecycleBinPictures') -ForegroundColor Cyan
+        for ($i = 0; $i -lt $pictures.Count; $i++) {
+            $picture = $pictures[$i]
+            Write-Host ('[{0}] {1} | {2} | {3}' -f ($i + 1), $picture.Name, $picture.OriginalLocation, $picture.DeletedAt)
+        }
+        Write-Host (Format-WtaText -Key 'RecycleBinInventorySaved' -Args @($inventoryPath)) -ForegroundColor DarkGray
+
+        $raw = Read-Host (Get-WtaText -Key 'RecycleBinChoose')
+        if ([string]::IsNullOrWhiteSpace($raw)) {
+            Add-WtaActionResult -Context $Context -ActionId 'RecoverDeletedPictures' -Status 'Cancelled' -Details (Get-WtaText -Key 'RecycleBinNoSelection') | Out-Null
+            return
+        }
+
+        $selectedIndexes = @()
+        foreach ($part in $raw.Split(',')) {
+            $number = 0
+            if ([int]::TryParse($part.Trim(), [ref]$number) -and $number -ge 1 -and $number -le $pictures.Count) { $selectedIndexes += $number }
+        }
+        $selectedIndexes = @($selectedIndexes | Select-Object -Unique)
+        if ($selectedIndexes.Count -eq 0) {
+            Add-WtaActionResult -Context $Context -ActionId 'RecoverDeletedPictures' -Status 'Cancelled' -Details (Get-WtaText -Key 'RecycleBinInvalidSelection') | Out-Null
+            return
+        }
+
+        $selected = @($selectedIndexes | ForEach-Object { $pictures[$_ - 1] })
+        Write-Host (Format-WtaText -Key 'RecycleBinRestoreNotice' -Args @($selected.Count)) -ForegroundColor Yellow
+        $confirmation = Read-Host (Get-WtaText -Key 'RecycleBinRestoreConfirm')
+        if ($confirmation -cne 'RESTORE') {
+            Add-WtaActionResult -Context $Context -ActionId 'RecoverDeletedPictures' -Status 'Cancelled' -Details (Get-WtaText -Key 'RecycleBinRestoreDeclined') | Out-Null
+            return
+        }
+
+        $restored = 0
+        $failed = 0
+        foreach ($picture in $selected) {
+            try {
+                $restoreVerb = @($picture.ShellItem.Verbs() | Where-Object {
+                    ([string]$_.Name).Replace('&', '').Trim() -match '^(Restore|Undelete|Wiederherstellen)$'
+                } | Select-Object -First 1)
+                if ($restoreVerb.Count -eq 0) { throw (Get-WtaText -Key 'RecycleBinRestoreUnavailable') }
+                # Use the displayed Shell verb so Windows restores to the original location on localized systems.
+                $picture.ShellItem.InvokeVerb([string]$restoreVerb[0].Name)
+                Start-Sleep -Milliseconds 150
+                $restored++
+            }
+            catch { $failed++ }
+        }
+        Add-WtaActionResult -Context $Context -ActionId 'RecoverDeletedPictures' -Status 'Success' -Details (Format-WtaText -Key 'RecycleBinRestoreResult' -Args @($restored, $failed)) | Out-Null
+    }
+    catch {
+        Add-WtaActionResult -Context $Context -ActionId 'RecoverDeletedPictures' -Status 'FailedNonFatal' -Details $_.Exception.Message | Out-Null
     }
 }
 
