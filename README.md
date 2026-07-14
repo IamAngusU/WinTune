@@ -4,6 +4,11 @@ Local-first Windows diagnostics and maintenance with explicit actions, practical
 
 [Download WinTune](https://angusu.de/wintune/) · [Documentation](https://angusu.de/docs/wintune/) · [Releases](https://github.com/IamAngusU/WinTune/releases)
 
+<picture>
+  <source srcset="assets/images/wintune-social-preview.webp" type="image/webp">
+  <img src="assets/images/wintune-social-preview.jpg" width="100%" alt="WinTune Advisor — Windows tools, clear choices, reversible actions">
+</picture>
+
 ## What it does
 
 WinTune inspects Windows 10 and 11 systems, presents evidence for each recommendation, and lets the user choose which maintenance actions to run. It is designed for transparent operation rather than silent background tuning.

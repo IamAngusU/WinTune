@@ -45,6 +45,7 @@ $replace = [
     '{{CSS_VERSION}}' => $assetVersion('assets/css/site.css'),
     '{{JS_VERSION}}' => $assetVersion('assets/js/site.js'),
     '{{IMAGE_VERSION}}' => $assetVersion('assets/images/wintune-hero.webp'),
+    '{{SOCIAL_IMAGE_VERSION}}' => $assetVersion('assets/images/wintune-social-preview.png'),
     '{{LOGO_VERSION}}' => $assetVersion('assets/images/logo_wintune-transparent.webp'),
     '{{FAVICON_VERSION}}' => $assetVersion('assets/images/favicon.png'),
     '{{LOGO_CSS_VERSION}}' => $assetVersion('assets/css/logo.css'),
