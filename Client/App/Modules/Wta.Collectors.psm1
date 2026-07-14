@@ -1,7 +1,7 @@
-
+﻿
 # Wta.Collectors.psm1
-Import-Module (Join-Path $PSScriptRoot 'Wta.Common.psm1') -Force
-Import-Module (Join-Path $PSScriptRoot 'Wta.Tui.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'Wta.Common.psm1') -DisableNameChecking
+Import-Module (Join-Path $PSScriptRoot 'Wta.Tui.psm1') -DisableNameChecking
 
 function Get-WtaSystemProfile {
     param([Parameter(Mandatory)][pscustomobject]$Context)
@@ -379,7 +379,9 @@ function Get-WtaPerformanceProfile {
             catch {}
 
             $percent = [math]::Round(($i / $SampleSeconds) * 100, 0)
-            Write-WtaPhaseProgress -Id 2 -Activity 'Live system sample' -Status ("CPU {0}% | RAM {1} MB free | Disk R {2} MB/s W {3} MB/s | Queue {4}" -f $cpu.PercentProcessorTime, $memory.AvailableMBytes, $totalRead, $totalWrite, $maxQueue) -Percent $percent
+            $activity = if ((Get-WtaLanguage) -eq 'de') { 'Live-Systemmessung' } else { 'Live system sample' }
+            $ramLabel = if ((Get-WtaLanguage) -eq 'de') { 'MB frei' } else { 'MB free' }
+            Write-WtaPhaseProgress -Id 2 -Activity $activity -Status ("CPU {0}% | RAM {1} {2} | Disk R {3} MB/s W {4} MB/s | Queue {5}" -f $cpu.PercentProcessorTime, $memory.AvailableMBytes, $ramLabel, $totalRead, $totalWrite, $maxQueue) -Percent $percent
             Start-Sleep -Seconds 1
         }
 
@@ -450,18 +452,22 @@ function Invoke-WtaReadOnlyScan {
     foreach ($collector in $collectors) {
         $phase++
         $percent = [math]::Round((($phase - 1) / $steps) * 55, 0)
-        Write-WtaPhaseProgress -Activity 'Live system analysis' -Status $collector.Name -Percent $percent
+        $activity = if ((Get-WtaLanguage) -eq 'de') { 'Live-Systemanalyse' } else { 'Live system analysis' }
+        Write-WtaPhaseProgress -Activity $activity -Status $collector.Name -Percent $percent
         $result = & $collector.Run
         $Context.Baseline[$collector.Key] = $result.Data
         Write-WtaCollectorStatus -Operation $result
     }
 
-    Write-WtaPhaseProgress -Activity 'Live system analysis' -Status 'Live CPU, memory, disk and process I/O sample' -Percent 58
+    $activity = if ((Get-WtaLanguage) -eq 'de') { 'Live-Systemanalyse' } else { 'Live system analysis' }
+    $sampleStatus = if ((Get-WtaLanguage) -eq 'de') { 'Live-Messung von CPU, Arbeitsspeicher, Datenträger und Prozess-I/O' } else { 'Live CPU, memory, disk and process I/O sample' }
+    Write-WtaPhaseProgress -Activity $activity -Status $sampleStatus -Percent 58
     $performance = Get-WtaPerformanceProfile -Context $Context -SampleSeconds $SampleSeconds
     $Context.Baseline['Performance'] = $performance.Data
     Write-WtaCollectorStatus -Operation $performance
 
-    Write-WtaPhaseProgress -Activity 'Live system analysis' -Status 'Completing analysis' -Percent 92
+    $completeStatus = if ((Get-WtaLanguage) -eq 'de') { 'Analyse wird abgeschlossen' } else { 'Completing analysis' }
+    Write-WtaPhaseProgress -Activity $activity -Status $completeStatus -Percent 92
     Complete-WtaProgress -Id 1
     return $Context
 }

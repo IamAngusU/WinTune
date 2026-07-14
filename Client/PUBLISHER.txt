@@ -1,0 +1,16 @@
+WinTune Advisor
+
+Publisher / Hersteller:
+Angusu.de
+Angus Uelsmann
+
+Website:
+https://angusu.de/
+
+Source:
+https://github.com/IamAngusU/WinTune
+
+Note:
+Windows may still show "Unknown publisher" for Start-WinTune.cmd because
+Windows command scripts cannot present a verified publisher unless the delivered
+software is Authenticode-signed or wrapped in a signed installer/MSIX.

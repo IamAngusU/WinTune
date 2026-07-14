@@ -1,9 +1,23 @@
-
+﻿
 # Wta.Actions.psm1
-Import-Module (Join-Path $PSScriptRoot 'Wta.Common.psm1') -Force
-Import-Module (Join-Path $PSScriptRoot 'Wta.Tui.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'Wta.Common.psm1') -DisableNameChecking
+Import-Module (Join-Path $PSScriptRoot 'Wta.Tui.psm1') -DisableNameChecking
 
 function Get-WtaActionCatalog {
+    if ((Get-WtaLanguage) -eq 'de') {
+        return @(
+            [pscustomobject]@{ Id='EnableTrim'; Name='NTFS TRIM aktivieren'; Risk='Niedrig'; RequiresAdmin=$true; RequiresSavedWork=$true; Description='Aktiviert NTFS TRIM nur, wenn der Scan es deaktiviert gefunden hat, und prüft die Einstellung danach.' },
+            [pscustomobject]@{ Id='ReTrim'; Name='Ausgewählte NTFS-Volumes erneut trimmen'; Risk='Niedrig'; RequiresAdmin=$true; RequiresSavedWork=$true; Description='Sendet eine ReTrim-Anforderung an ausgewählte NTFS-Volumes. Das ist keine SSD-Defragmentierung.' },
+            [pscustomobject]@{ Id='CleanUserTemp'; Name='Alte TEMP-Dateien des aktuellen Benutzers löschen'; Risk='Niedrig'; RequiresAdmin=$false; RequiresSavedWork=$true; Description='Löscht nur Dateien älter als sieben Tage in Benutzer-TEMP-Ordnern. Gesperrte Dateien werden übersprungen.' },
+            [pscustomobject]@{ Id='PauseSearch'; Name='Windows Search vorübergehend pausieren'; Risk='Niedrig'; RequiresAdmin=$true; RequiresSavedWork=$false; Description='Stoppt Windows Search für die aktuelle Sitzung. Suche und Index-Aktualität sind bis zum Fortsetzen reduziert.' },
+            [pscustomobject]@{ Id='ResumeSearch'; Name='Windows Search fortsetzen'; Risk='Niedrig'; RequiresAdmin=$true; RequiresSavedWork=$false; Description='Startet Windows Search, falls der Dienst gestoppt war.' },
+            [pscustomobject]@{ Id='ReduceAnimations'; Name='UI-Animationen reduzieren'; Risk='Niedrig'; RequiresAdmin=$false; RequiresSavedWork=$true; Description='Reduziert Fenster-/Client-Animationen für den aktuellen Benutzer. Manche Shell-Elemente brauchen ggf. Ab- und Anmeldung.' },
+            [pscustomobject]@{ Id='HighPerformancePlan'; Name='Energieplan Höchstleistung aktivieren'; Risk='Niedrig'; RequiresAdmin=$false; RequiresSavedWork=$false; Description='Aktiviert Höchstleistung und speichert das vorherige Schema zur manuellen Wiederherstellung.' },
+            [pscustomobject]@{ Id='RunDiskScan'; Name='Online-Datenträgerprüfung ausführen'; Risk='Mittel'; RequiresAdmin=$true; RequiresSavedWork=$true; Description='Führt chkdsk /scan auf einem gewählten Volume aus. Das kann zusätzliche Speicher-I/O erzeugen.' },
+            [pscustomobject]@{ Id='ReviewStartup'; Name='Registry-Run-Autostart-Einträge prüfen'; Risk='Niedrig'; RequiresAdmin=$false; RequiresSavedWork=$true; Description='Zeigt unterstützte Registry-Run-Einträge; beim Deaktivieren wird vorher immer ein JSON-Backup erstellt.' },
+            [pscustomobject]@{ Id='RecoverDeletedPictures'; Name='Gelöschte Bilder im Papierkorb finden und wiederherstellen'; Risk='Niedrig'; RequiresAdmin=$false; RequiresSavedWork=$true; Description='Erstellt zuerst eine lokale Liste von Bilddateien im Papierkorb. Ausgewählte Dateien werden nach einer zweiten Bestätigung an ihren ursprünglichen Ort wiederhergestellt.' }
+        )
+    }
     return @(
         [pscustomobject]@{ Id='EnableTrim'; Name='Enable NTFS TRIM'; Risk='Low'; RequiresAdmin=$true; RequiresSavedWork=$true; Description='Enables NTFS TRIM only when the scan found it disabled, then verifies the setting.' },
         [pscustomobject]@{ Id='ReTrim'; Name='ReTrim selected NTFS volumes'; Risk='Low'; RequiresAdmin=$true; RequiresSavedWork=$true; Description='Sends a ReTrim request to selected NTFS volumes. It is not SSD defragmentation.' },
@@ -13,7 +27,8 @@ function Get-WtaActionCatalog {
         [pscustomobject]@{ Id='ReduceAnimations'; Name='Reduce UI animations'; Risk='Low'; RequiresAdmin=$false; RequiresSavedWork=$true; Description='Reduces window/client-area animations for the current user. Some shell elements may need sign-out.' },
         [pscustomobject]@{ Id='HighPerformancePlan'; Name='Activate High performance power plan'; Risk='Low'; RequiresAdmin=$false; RequiresSavedWork=$false; Description='Activates High performance and records the previous scheme for manual restoration.' },
         [pscustomobject]@{ Id='RunDiskScan'; Name='Run online disk scan'; Risk='Medium'; RequiresAdmin=$true; RequiresSavedWork=$true; Description='Runs chkdsk /scan on a chosen volume. It may add storage I/O.' },
-        [pscustomobject]@{ Id='ReviewStartup'; Name='Review Registry Run startup entries'; Risk='Low'; RequiresAdmin=$false; RequiresSavedWork=$true; Description='Shows supported Registry Run entries; disabling one always creates a JSON backup first.' }
+        [pscustomobject]@{ Id='ReviewStartup'; Name='Review Registry Run startup entries'; Risk='Low'; RequiresAdmin=$false; RequiresSavedWork=$true; Description='Shows supported Registry Run entries; disabling one always creates a JSON backup first.' },
+        [pscustomobject]@{ Id='RecoverDeletedPictures'; Name='Find and restore deleted pictures from Recycle Bin'; Risk='Low'; RequiresAdmin=$false; RequiresSavedWork=$true; Description='First creates a local inventory of picture files in Recycle Bin. Selected files are restored to their original location only after a second confirmation.' }
     )
 }
 
@@ -24,27 +39,31 @@ function Test-WtaActionEligibility {
     )
 
     if ($Action.RequiresAdmin -and -not $Context.IsAdministrator) {
-        return [pscustomobject]@{ Eligible=$false; Reason='administrator rights required' }
+        return [pscustomobject]@{ Eligible=$false; Reason=(Get-WtaText -Key 'AdminRequired') }
     }
     if ($Action.RequiresSavedWork -and $Context.ProtectMode) {
-        return [pscustomobject]@{ Eligible=$false; Reason='blocked by work safety mode' }
+        $reason = if ((Get-WtaLanguage) -eq 'de') { 'durch Arbeitsschutz-Modus blockiert' } else { 'blocked by work safety mode' }
+        return [pscustomobject]@{ Eligible=$false; Reason=$reason }
     }
 
     if ($Action.Id -eq 'EnableTrim' -and $Context.Baseline.Trim.NtfsDisableDeleteNotify -ne 1) {
-        return [pscustomobject]@{ Eligible=$false; Reason='TRIM is already enabled or unavailable' }
+        $reason = if ((Get-WtaLanguage) -eq 'de') { 'TRIM ist bereits aktiv oder nicht verfügbar' } else { 'TRIM is already enabled or unavailable' }
+        return [pscustomobject]@{ Eligible=$false; Reason=$reason }
     }
 
     if ($Action.Id -eq 'PauseSearch') {
         $service = @($Context.Baseline.Services | Where-Object { $_.Name -eq 'WSearch' }) | Select-Object -First 1
         if ($null -eq $service -or $service.State -ne 'Running') {
-            return [pscustomobject]@{ Eligible=$false; Reason='Windows Search is not running' }
+            $reason = if ((Get-WtaLanguage) -eq 'de') { 'Windows Search läuft nicht' } else { 'Windows Search is not running' }
+            return [pscustomobject]@{ Eligible=$false; Reason=$reason }
         }
     }
 
     if ($Action.Id -eq 'ResumeSearch') {
         $service = @($Context.Baseline.Services | Where-Object { $_.Name -eq 'WSearch' }) | Select-Object -First 1
         if ($null -eq $service -or $service.State -eq 'Running') {
-            return [pscustomobject]@{ Eligible=$false; Reason='Windows Search already runs' }
+            $reason = if ((Get-WtaLanguage) -eq 'de') { 'Windows Search läuft bereits' } else { 'Windows Search already runs' }
+            return [pscustomobject]@{ Eligible=$false; Reason=$reason }
         }
     }
 
@@ -137,7 +156,7 @@ function Invoke-WtaSelectedActions {
 
         $Context.Decisions += [pscustomobject]@{ Timestamp=(Get-Date).ToString('o'); ActionId=$catalogAction.Id; Decision='Accepted' }
         Write-Host ''
-        Write-Host ("Executing: {0}" -f $catalogAction.Name) -ForegroundColor Cyan
+        Write-Host (Format-WtaText -Key 'Executing' -Args @($catalogAction.Name)) -ForegroundColor Cyan
         Invoke-WtaOneAction -Context $Context -Action $catalogAction
     }
 }
@@ -167,9 +186,9 @@ function Invoke-WtaOneAction {
             'ReTrim' {
                 $volumes = @($Context.Baseline.Volumes | Where-Object { $_.FileSystem -eq 'NTFS' })
                 $letters = @($volumes | ForEach-Object { $_.Drive.TrimEnd(':') })
-                $raw = Read-Host ("NTFS volumes: {0}. Enter letters comma-separated or ALL" -f ($letters -join ', '))
+                $raw = Read-Host (Format-WtaText -Key 'NtfsVolumes' -Args @($letters -join ', '))
                 if ([string]::IsNullOrWhiteSpace($raw)) {
-                    Add-WtaActionResult -Context $Context -ActionId $Action.Id -Status 'Cancelled' -Details 'No volume selected.' | Out-Null
+                    Add-WtaActionResult -Context $Context -ActionId $Action.Id -Status 'Cancelled' -Details (Get-WtaText -Key 'NoVolume') | Out-Null
                     return
                 }
 
@@ -184,7 +203,7 @@ function Invoke-WtaOneAction {
                 }
 
                 if ($selected.Count -eq 0) {
-                    Add-WtaActionResult -Context $Context -ActionId $Action.Id -Status 'Cancelled' -Details 'No valid NTFS volume selected.' | Out-Null
+                    Add-WtaActionResult -Context $Context -ActionId $Action.Id -Status 'Cancelled' -Details (Get-WtaText -Key 'NoValidVolume') | Out-Null
                     return
                 }
 
@@ -223,7 +242,7 @@ function Invoke-WtaOneAction {
                     return [pscustomobject]@{ Deleted=$deleted; DeletedMB=[math]::Round($bytes/1MB,1); Skipped=$skipped }
                 }
                 if ($result.Status -eq 'Success') {
-                    Add-WtaActionResult -Context $Context -ActionId $Action.Id -Status 'Success' -Details ("Deleted {0} files / {1} MB; skipped {2} locked/unavailable files." -f $result.Data.Deleted, $result.Data.DeletedMB, $result.Data.Skipped) | Out-Null
+                    Add-WtaActionResult -Context $Context -ActionId $Action.Id -Status 'Success' -Details (Format-WtaText -Key 'DeletedTemp' -Args @($result.Data.Deleted, $result.Data.DeletedMB, $result.Data.Skipped)) | Out-Null
                 } else {
                     Add-WtaActionResult -Context $Context -ActionId $Action.Id -Status $result.Status -Details $result.ErrorMessage | Out-Null
                 }
@@ -276,10 +295,10 @@ function Invoke-WtaOneAction {
             }
 
             'RunDiskScan' {
-                $drive = Read-Host 'Drive letter for chkdsk /scan (example C)'
+                $drive = Read-Host (Get-WtaText -Key 'DrivePrompt')
                 $drive = $drive.Trim().TrimEnd(':').ToUpperInvariant()
                 if ($drive -notmatch '^[A-Z]$') {
-                    Add-WtaActionResult -Context $Context -ActionId $Action.Id -Status 'Cancelled' -Details 'Invalid drive letter.' | Out-Null
+                    Add-WtaActionResult -Context $Context -ActionId $Action.Id -Status 'Cancelled' -Details (Get-WtaText -Key 'InvalidDrive') | Out-Null
                     return
                 }
                 $result = Invoke-WtaSafeOperation -Context $Context -Id 'action.diskScan' -RequiresAdministrator -Primary {
@@ -293,10 +312,105 @@ function Invoke-WtaOneAction {
             'ReviewStartup' {
                 Invoke-WtaStartupReview -Context $Context
             }
+
+            'RecoverDeletedPictures' {
+                Invoke-WtaDeletedPictureRecovery -Context $Context
+            }
         }
     }
     catch {
         Add-WtaActionResult -Context $Context -ActionId $Action.Id -Status 'FailedNonFatal' -Details $_.Exception.Message | Out-Null
+    }
+}
+
+function Get-WtaRecycleBinPictures {
+    $extensions = @('.jpg','.jpeg','.png','.gif','.bmp','.tif','.tiff','.webp','.heic','.heif','.raw','.dng','.cr2','.nef','.arw')
+    $shell = New-Object -ComObject Shell.Application
+    $recycleBin = $shell.Namespace(0xA)
+    if ($null -eq $recycleBin) { throw (Get-WtaText -Key 'RecycleBinUnavailable') }
+
+    $pictures = @()
+    foreach ($item in @($recycleBin.Items())) {
+        $extension = [System.IO.Path]::GetExtension([string]$item.Name).ToLowerInvariant()
+        if ($extensions -notcontains $extension) { continue }
+        $pictures += [pscustomobject]@{
+            Name = [string]$item.Name
+            OriginalLocation = [string]$recycleBin.GetDetailsOf($item, 1)
+            DeletedAt = [string]$recycleBin.GetDetailsOf($item, 2)
+            Size = [string]$recycleBin.GetDetailsOf($item, 3)
+            ShellItem = $item
+        }
+    }
+    return @($pictures | Sort-Object Name)
+}
+
+function Invoke-WtaDeletedPictureRecovery {
+    param([Parameter(Mandatory)][pscustomobject]$Context)
+
+    try {
+        $pictures = @(Get-WtaRecycleBinPictures)
+        $inventoryPath = Join-Path (Ensure-WtaOutputRoot -Context $Context) 'DeletedPictures-RecycleBin.csv'
+        @($pictures | Select-Object Name, OriginalLocation, DeletedAt, Size) | Export-Csv -LiteralPath $inventoryPath -NoTypeInformation -Encoding UTF8
+
+        if ($pictures.Count -eq 0) {
+            Write-Host (Get-WtaText -Key 'RecycleBinNoPictures') -ForegroundColor Yellow
+            Write-Host (Get-WtaText -Key 'PermanentDeletionGuidance') -ForegroundColor Yellow
+            Add-WtaActionResult -Context $Context -ActionId 'RecoverDeletedPictures' -Status 'Skipped' -Details (Format-WtaText -Key 'RecycleBinInventoryEmpty' -Args @($inventoryPath)) | Out-Null
+            return
+        }
+
+        Write-Host ''
+        Write-Host (Get-WtaText -Key 'RecycleBinPictures') -ForegroundColor Cyan
+        for ($i = 0; $i -lt $pictures.Count; $i++) {
+            $picture = $pictures[$i]
+            Write-Host ('[{0}] {1} | {2} | {3}' -f ($i + 1), $picture.Name, $picture.OriginalLocation, $picture.DeletedAt)
+        }
+        Write-Host (Format-WtaText -Key 'RecycleBinInventorySaved' -Args @($inventoryPath)) -ForegroundColor DarkGray
+
+        $raw = Read-Host (Get-WtaText -Key 'RecycleBinChoose')
+        if ([string]::IsNullOrWhiteSpace($raw)) {
+            Add-WtaActionResult -Context $Context -ActionId 'RecoverDeletedPictures' -Status 'Cancelled' -Details (Get-WtaText -Key 'RecycleBinNoSelection') | Out-Null
+            return
+        }
+
+        $selectedIndexes = @()
+        foreach ($part in $raw.Split(',')) {
+            $number = 0
+            if ([int]::TryParse($part.Trim(), [ref]$number) -and $number -ge 1 -and $number -le $pictures.Count) { $selectedIndexes += $number }
+        }
+        $selectedIndexes = @($selectedIndexes | Select-Object -Unique)
+        if ($selectedIndexes.Count -eq 0) {
+            Add-WtaActionResult -Context $Context -ActionId 'RecoverDeletedPictures' -Status 'Cancelled' -Details (Get-WtaText -Key 'RecycleBinInvalidSelection') | Out-Null
+            return
+        }
+
+        $selected = @($selectedIndexes | ForEach-Object { $pictures[$_ - 1] })
+        Write-Host (Format-WtaText -Key 'RecycleBinRestoreNotice' -Args @($selected.Count)) -ForegroundColor Yellow
+        $confirmation = Read-Host (Get-WtaText -Key 'RecycleBinRestoreConfirm')
+        if ($confirmation -cne 'RESTORE') {
+            Add-WtaActionResult -Context $Context -ActionId 'RecoverDeletedPictures' -Status 'Cancelled' -Details (Get-WtaText -Key 'RecycleBinRestoreDeclined') | Out-Null
+            return
+        }
+
+        $restored = 0
+        $failed = 0
+        foreach ($picture in $selected) {
+            try {
+                $restoreVerb = @($picture.ShellItem.Verbs() | Where-Object {
+                    ([string]$_.Name).Replace('&', '').Trim() -match '^(Restore|Undelete|Wiederherstellen)$'
+                } | Select-Object -First 1)
+                if ($restoreVerb.Count -eq 0) { throw (Get-WtaText -Key 'RecycleBinRestoreUnavailable') }
+                # Use the displayed Shell verb so Windows restores to the original location on localized systems.
+                $picture.ShellItem.InvokeVerb([string]$restoreVerb[0].Name)
+                Start-Sleep -Milliseconds 150
+                $restored++
+            }
+            catch { $failed++ }
+        }
+        Add-WtaActionResult -Context $Context -ActionId 'RecoverDeletedPictures' -Status 'Success' -Details (Format-WtaText -Key 'RecycleBinRestoreResult' -Args @($restored, $failed)) | Out-Null
+    }
+    catch {
+        Add-WtaActionResult -Context $Context -ActionId 'RecoverDeletedPictures' -Status 'FailedNonFatal' -Details $_.Exception.Message | Out-Null
     }
 }
 
@@ -310,12 +424,12 @@ function Invoke-WtaStartupReview {
     }
 
     Write-Host ''
-    Write-Host 'SUPPORTED REGISTRY RUN STARTUP ENTRIES' -ForegroundColor Cyan
+    Write-Host (Get-WtaText -Key 'StartupEntries') -ForegroundColor Cyan
     for ($i = 0; $i -lt $items.Count; $i++) {
-        Write-Host ("[{0}] {1} — {2}" -f ($i + 1), $items[$i].Name, $items[$i].Location)
+        Write-Host ("[{0}] {1} - {2}" -f ($i + 1), $items[$i].Name, $items[$i].Location)
     }
 
-    $raw = Read-Host 'Enter one number to disable, or press Enter to cancel'
+    $raw = Read-Host (Get-WtaText -Key 'StartupChoose')
     if ([string]::IsNullOrWhiteSpace($raw)) {
         Add-WtaActionResult -Context $Context -ActionId 'ReviewStartup' -Status 'Cancelled' -Details 'No startup item selected.' | Out-Null
         return
@@ -328,7 +442,7 @@ function Invoke-WtaStartupReview {
     }
 
     $item = $items[$index - 1]
-    $confirm = Get-WtaChoice -Prompt ("Disable '{0}'? Backup is created. (Y/N)" -f $item.Name) -Allowed @('Y','N') -Default 'N'
+    $confirm = Get-WtaChoice -Prompt (Format-WtaText -Key 'StartupDisable' -Args @($item.Name)) -Allowed @('Y','N') -Default 'N'
     if ($confirm -ne 'Y') {
         Add-WtaActionResult -Context $Context -ActionId 'ReviewStartup' -Status 'Cancelled' -Details 'Startup change declined.' | Out-Null
         return

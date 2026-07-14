@@ -1,6 +1,6 @@
-
+﻿
 # Wta.Rules.psm1
-Import-Module (Join-Path $PSScriptRoot 'Wta.Common.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'Wta.Common.psm1') -DisableNameChecking
 
 function Add-WtaFinding {
     param(
@@ -14,6 +14,27 @@ function Add-WtaFinding {
         [string[]]$ActionIds = @(),
         [ValidateSet('ReadOnly','Low','Medium','Manual')][string]$Risk = 'ReadOnly'
     )
+
+    if ((Get-WtaLanguage) -eq 'de') {
+        switch ($RuleId) {
+            'STORAGE_CRITICAL_FREE_SPACE' { $Title = $Title -replace ' has critically low free space',' hat kritisch wenig freien Speicher'; $Recommendation = 'Nicht-Systemdaten verschieben oder entfernen. Windows, Programme, Projektordner oder die Auslagerungsdatei nicht automatisch verschieben.'; $Category='Speicher' }
+            'STORAGE_LOW_FREE_SPACE' { $Title = $Title -replace ' has low free space',' hat wenig freien Speicher'; $Recommendation = 'Speicherplatz freigeben oder große persönliche/Projekt-Daten verschieben. Ziel: mindestens 10%, besser 15%, frei auf dem Systemvolume.'; $Category='Speicher' }
+            'TRIM_DISABLED' { $Title = 'NTFS TRIM ist deaktiviert'; $Recommendation = 'NTFS TRIM aktivieren und ReTrim erst ausführen, wenn aktuelle schreibintensive Arbeit abgeschlossen ist.'; $Category='Speicher' }
+            'DISK_HEALTH_NOT_HEALTHY' { $Title = $Title -replace '^Disk ','Datenträger ' -replace ' reports health status ',' meldet Gesundheitsstatus '; $Recommendation = 'Wichtige Daten sichern und Speicherhardware, Verbindung, Firmware sowie Herstellerdiagnose prüfen.'; $Category='Speicher' }
+            'DISK_RELIABILITY_ERRORS' { $Title = $Title -replace '^Disk ','Datenträger ' -replace ' exposes reliability error counters',' zeigt Zuverlässigkeits-Fehlerzähler'; $Recommendation = 'Backup-Abdeckung und Herstellerdiagnose prüfen. Dieses Tool setzt Zuverlässigkeitszähler nie zurück.'; $Category='Speicher' }
+            'DISK_HIGH_TEMPERATURE' { $Title = $Title -replace '^Disk ','Datenträger ' -replace ' reports high temperature',' meldet hohe Temperatur'; $Recommendation = 'Luftstrom, Kühlkörperkontakt, Firmware und dauerhafte Last prüfen, bevor schreibintensive Arbeit fortgesetzt wird.'; $Category='Speicher' }
+            'STORAGE_RELIABILITY_EVENTS' { $Title = 'Aktuelle speicherbezogene Systemereignisse gefunden'; $Recommendation = 'Vor Reparaturaktionen den lokalen Bericht prüfen. Wiederholte Reset- oder I/O-Ereignisse können auf Treiber-, Controller-, Strom- oder Speicherprobleme hinweisen.'; $Category='Zuverlässigkeit' }
+            'CPU_SATURATION' { $Title = 'CPU-Auslastung während der Messung beobachtet'; $Recommendation = 'Top-Prozess-I/O-Bericht und Task-Manager nutzen, um die Last mit aktueller Arbeit abzugleichen, bevor Hintergrunddienste geändert werden.' }
+            'MEMORY_PRESSURE' { $Title = 'Speicherdruck während der Messung beobachtet'; $Recommendation = 'Gleichzeitige Last reduzieren oder unnötige Programme schließen. Die Auslagerungsdatei nicht pauschal als Optimierung deaktivieren.'; $Category='Arbeitsspeicher' }
+            'STORAGE_IO_PRESSURE' { $Title = $Title -replace '^Storage pressure was observed on','Speicherdruck beobachtet auf'; $Recommendation = 'Den aktiv schreibenden Prozess identifizieren. Speicherwartung vermeiden, solange diese Last läuft.'; $Category='Speicher' }
+            'SEARCH_INDEXER_IO' { $Title = 'Windows Search Indexer schrieb während der Messung Daten'; $Recommendation = 'Windows Search kann während schwerer Last vorübergehend pausiert und danach fortgesetzt werden.'; $Category='Hintergrundarbeit' }
+            'LONG_UPTIME' { $Title = 'Lange Systemlaufzeit erkannt'; $Recommendation = 'Wenn alle Arbeit gespeichert ist, kann ein geplanter Neustart alten Zustand lösen und ausstehende Updates abschließen. Er wird nie automatisch ausgeführt.'; $Category='System' }
+            'STARTUP_DENSITY' { $Title = 'Viele Autostart-Einträge entdeckt'; $Recommendation = 'Jeden Eintrag nach Zweck prüfen. Das Tool verwaltet nur unterstützte Registry-Run-Einträge und erstellt vor dem Deaktivieren ein Backup.'; $Category='Autostart' }
+            'OLD_TEMP_CANDIDATES' { $Title = 'Alte TEMP-Dateien des aktuellen Benutzers gefunden'; $Recommendation = 'Optionale Bereinigung entfernt nur Dateien älter als sieben Tage aus Benutzer-TEMP-Pfaden und überspringt gesperrte Dateien.'; $Category='Bereinigung' }
+            'VISUAL_EFFECTS_OPTION' { $Title = 'UI-Animationen sind eine optionale Vorliebe'; $Recommendation = 'Animationen nur reduzieren, wenn weniger UI-Bewegung gewünscht ist; das ist keine Speicherzustands-Optimierung.'; $Category='Darstellung' }
+            'POWER_PLAN_OPTION' { $Title = 'Energieplan Höchstleistung ist nicht aktiv'; $Recommendation = 'Auf Desktop- oder Netzbetrieb-Workstations kann Höchstleistung die Reaktionsfähigkeit verbessern, kostet aber Energie, Wärme und Lüftergeräusch.'; $Category='Energie' }
+        }
+    }
 
     $Context.Findings += [pscustomobject]@{
         Id = ('F-{0:D3}' -f ($Context.Findings.Count + 1))
@@ -89,7 +110,7 @@ function Invoke-WtaRuleEngine {
         if ($null -ne $disk.TemperatureC -and [double]$disk.TemperatureC -ge 70) {
             Add-WtaFinding -Context $Context -Severity Warning -Category 'Storage' -RuleId 'DISK_HIGH_TEMPERATURE' `
                 -Title ("Disk {0} reports high temperature" -f $disk.Number) `
-                -Evidence ("{0}°C on {1}." -f $disk.TemperatureC, $disk.FriendlyName) `
+                -Evidence ("{0} degrees C on {1}." -f $disk.TemperatureC, $disk.FriendlyName) `
                 -Recommendation 'Inspect airflow, heatsink contact, firmware, and sustained workload before continuing heavy writes.' `
                 -ActionIds @() -Risk Manual
         }
@@ -168,7 +189,8 @@ function Invoke-WtaRuleEngine {
         -Recommendation 'Reduce animations only when the user prefers less UI motion; this is not a disk-health optimization.' `
         -ActionIds @('ReduceAnimations') -Risk Low
 
-    if ($system -and -not $system.HasBattery -and $system.ActivePowerPlan -notmatch 'Höchstleistung|High performance') {
+    $highPerformancePlanPattern = 'High performance|H' + [char]0x00F6 + 'chstleistung'
+    if ($system -and -not $system.HasBattery -and $system.ActivePowerPlan -notmatch $highPerformancePlanPattern) {
         Add-WtaFinding -Context $Context -Severity Optional -Category 'Power' -RuleId 'POWER_PLAN_OPTION' `
             -Title 'High performance power plan is not active' -Evidence $system.ActivePowerPlan `
             -Recommendation 'On a desktop or plugged-in workstation, High performance may improve responsiveness at the cost of energy use, heat, and fan noise.' `
