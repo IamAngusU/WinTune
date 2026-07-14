@@ -1,6 +1,6 @@
 # Start WinTune
 
-Publisher: Angusu.de / Angus Uelsmann  
+Publisher: Angusu.de / Angus Uelsmann
 Website: https://angusu.de/
 
 1. Download and extract the starter ZIP to a local folder, such as Downloads.
