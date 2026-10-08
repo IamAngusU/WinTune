@@ -39,9 +39,13 @@ jobs:
           php-version: '8.1'
           extensions: openssl, zip
       - name: Validate release input
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_CHANNEL: ${{ inputs.channel }}
         run: |
-          [[ "${{ inputs.version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
-          [[ "${{ inputs.channel }}" == "beta" || "${{ inputs.channel }}" == "stable" ]]
+          set -euo pipefail
+          [[ "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "$RELEASE_CHANNEL" == "beta" || "$RELEASE_CHANNEL" == "stable" ]]
       - name: Restore the signing key
         env:
           WINTUNE_UPDATE_SIGNING_KEY: ${{ secrets.WINTUNE_UPDATE_SIGNING_KEY }}
@@ -59,21 +63,28 @@ jobs:
           printf '%s\n' "$WINTUNE_DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/wintune-deploy ~/.ssh/known_hosts
       - name: Build signed package
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_CHANNEL: ${{ inputs.channel }}
+          RELEASE_NOTES: ${{ inputs.notes }}
         run: |
+          set -euo pipefail
           php Server/scripts/build_release.php \
             --app-dir="$GITHUB_WORKSPACE/Client/App" \
             --client-dir="$GITHUB_WORKSPACE/Client" \
             --release-root="$RUNNER_TEMP/releases" \
             --base-url="https://angusu.de/wintune" \
-            --channel="${{ inputs.channel }}" \
-            --version="${{ inputs.version }}" \
-            --notes="${{ inputs.notes }}" \
+            --channel="$RELEASE_CHANNEL" \
+            --version="$RELEASE_VERSION" \
+            --notes="$RELEASE_NOTES" \
             --private-key="$RUNNER_TEMP/update-signing-private.pem"
       - name: Deploy package and manifests
         env:
           WINTUNE_DEPLOY_HOST: ${{ secrets.WINTUNE_DEPLOY_HOST }}
           WINTUNE_DEPLOY_USER: ${{ secrets.WINTUNE_DEPLOY_USER }}
           WINTUNE_RELEASE_ROOT: ${{ secrets.WINTUNE_RELEASE_ROOT }}
+          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_CHANNEL: ${{ inputs.channel }}
         run: |
           set -euo pipefail
           [[ "$WINTUNE_DEPLOY_HOST" =~ ^[A-Za-z0-9.-]+$ ]]
@@ -81,23 +92,27 @@ jobs:
           [[ "$WINTUNE_RELEASE_ROOT" =~ ^/[-A-Za-z0-9_./]+$ ]]
           target="$WINTUNE_DEPLOY_USER@$WINTUNE_DEPLOY_HOST"
           ssh -i ~/.ssh/wintune-deploy -o StrictHostKeyChecking=yes "$target" \
-            mkdir -p "$WINTUNE_RELEASE_ROOT/packages/${{ inputs.channel }}" "$WINTUNE_RELEASE_ROOT/manifests"
+            mkdir -p "$WINTUNE_RELEASE_ROOT/packages/$RELEASE_CHANNEL" "$WINTUNE_RELEASE_ROOT/manifests"
           scp -i ~/.ssh/wintune-deploy -o StrictHostKeyChecking=yes \
-            "$RUNNER_TEMP/releases/packages/${{ inputs.channel }}/WinTuneAdvisor-${{ inputs.version }}.zip" \
-            "$target:$WINTUNE_RELEASE_ROOT/packages/${{ inputs.channel }}/WinTuneAdvisor-${{ inputs.version }}.zip"
+            "$RUNNER_TEMP/releases/packages/$RELEASE_CHANNEL/WinTuneAdvisor-$RELEASE_VERSION.zip" \
+            "$target:$WINTUNE_RELEASE_ROOT/packages/$RELEASE_CHANNEL/WinTuneAdvisor-$RELEASE_VERSION.zip"
           scp -i ~/.ssh/wintune-deploy -o StrictHostKeyChecking=yes \
-            "$RUNNER_TEMP/releases/packages/${{ inputs.channel }}/WinTuneAdvisor-Setup-${{ inputs.version }}.zip" \
-            "$target:$WINTUNE_RELEASE_ROOT/packages/${{ inputs.channel }}/WinTuneAdvisor-Setup-${{ inputs.version }}.zip"
+            "$RUNNER_TEMP/releases/packages/$RELEASE_CHANNEL/WinTuneAdvisor-Setup-$RELEASE_VERSION.zip" \
+            "$target:$WINTUNE_RELEASE_ROOT/packages/$RELEASE_CHANNEL/WinTuneAdvisor-Setup-$RELEASE_VERSION.zip"
           scp -i ~/.ssh/wintune-deploy -o StrictHostKeyChecking=yes \
-            "$RUNNER_TEMP/releases/manifests/${{ inputs.channel }}.json" \
+            "$RUNNER_TEMP/releases/manifests/$RELEASE_CHANNEL.json" \
             "$RUNNER_TEMP/releases/manifests/public-release.json" \
             "$target:$WINTUNE_RELEASE_ROOT/manifests/"
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_CHANNEL: ${{ inputs.channel }}
+          RELEASE_NOTES: ${{ inputs.notes }}
         run: |
-          gh release create "v${{ inputs.version }}" \
-            "$RUNNER_TEMP/releases/packages/${{ inputs.channel }}/WinTuneAdvisor-${{ inputs.version }}.zip#WinTuneAdvisor-${{ inputs.version }}.zip" \
-            "$RUNNER_TEMP/releases/packages/${{ inputs.channel }}/WinTuneAdvisor-Setup-${{ inputs.version }}.zip#WinTuneAdvisor-Setup-${{ inputs.version }}.zip" \
-            --title "WinTune v${{ inputs.version }}" \
-            --notes "${{ inputs.notes }}"
+          set -euo pipefail
+          gh release create "v$RELEASE_VERSION" \
+            "$RUNNER_TEMP/releases/packages/$RELEASE_CHANNEL/WinTuneAdvisor-$RELEASE_VERSION.zip#WinTuneAdvisor-$RELEASE_VERSION.zip" \
+            "$RUNNER_TEMP/releases/packages/$RELEASE_CHANNEL/WinTuneAdvisor-Setup-$RELEASE_VERSION.zip#WinTuneAdvisor-Setup-$RELEASE_VERSION.zip" \
+            --title "WinTune v$RELEASE_VERSION" \
+            --notes "$RELEASE_NOTES"
